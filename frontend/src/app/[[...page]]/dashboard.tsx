@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client"
+
+import { useState } from "react"
 import {
   BarChart,
   Home,
@@ -14,11 +16,12 @@ import {
   LogOut,
   Search,
   Bell,
-} from "lucide-react";
-import "./App.css";
+} from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-function App() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState("dashboard")
 
   return (
     <div className="flex h-screen bg-gray-950 text-gray-100">
@@ -127,17 +130,18 @@ function App() {
         <div className="flex justify-between items-center mb-6">
           <div className="relative w-1/2">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
-            <input
+            <Input
               type="text"
               placeholder="Search here..."
-              className="pl-10 bg-gray-900 border-gray-800 text-gray-300 w-full rounded-md p-2"
+              className="pl-10 bg-gray-900 border-gray-800 text-gray-300 w-full"
             />
           </div>
           <div className="flex items-center gap-4">
             <Bell size={20} />
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-              U
-            </div>
+            <Avatar>
+              <AvatarImage src="/placeholder.svg" alt="User" />
+              <AvatarFallback>U</AvatarFallback>
+            </Avatar>
           </div>
         </div>
 
@@ -241,6 +245,7 @@ function App() {
                 <h2 className="text-xl font-semibold mb-6">Visitor Insights</h2>
 
                 <div className="h-64 relative">
+                  {/* This would be a real chart in a production app */}
                   <div className="absolute inset-0">
                     <svg viewBox="0 0 500 200" className="w-full h-full">
                       <path
@@ -321,6 +326,7 @@ function App() {
               <h2 className="text-xl font-semibold mb-6">Customer Fulfilment</h2>
 
               <div className="h-48 relative mb-4">
+                {/* This would be a real chart in a production app */}
                 <div className="absolute inset-0">
                   <svg viewBox="0 0 500 200" className="w-full h-full">
                     <path
@@ -378,7 +384,7 @@ function App() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function SalesCard({ icon, value, label, change, changeColor }) {
@@ -389,7 +395,7 @@ function SalesCard({ icon, value, label, change, changeColor }) {
       <div className="text-sm text-gray-400">{label}</div>
       <div className={`text-xs mt-2 ${changeColor}`}>{change}</div>
     </div>
-  );
+  )
 }
 
 function ProductRow({ id, name, popularity, sales, color }) {
@@ -406,7 +412,5 @@ function ProductRow({ id, name, popularity, sales, color }) {
         <span className={`px-2 py-1 rounded-md bg-gray-800 text-xs`}>{sales}%</span>
       </td>
     </tr>
-  );
+  )
 }
-
-export default App;
