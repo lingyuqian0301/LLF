@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
-import axios from 'axios';
-
-// Configure axios base URL
-axios.defaults.baseURL = 'http://localhost:8000';
-axios.defaults.withCredentials = true; // Required for cookies, if needed
+// Removed axios import
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Line, Bar } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -39,6 +35,10 @@ import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 import GrabAssistant from "./pages/GrabAssistant";
 
+// --- NO axios configuration needed now ---
+// axios.defaults.baseURL = 'http://127.0.0.1:8000';
+// axios.defaults.withCredentials = true; // Not needed for fetch; you can pass credentials explicitly in fetch
+
 // Register ChartJS components
 ChartJS.register(
   CategoryScale,
@@ -51,11 +51,16 @@ ChartJS.register(
   Legend
 );
 
-// API functions
+// API functions (using fetch now)
 const fetchMerchantData = async (merchantId, endpoint) => {
   try {
-    const response = await axios.get(`/api/merchant/${merchantId}/${endpoint}/`);
-    return response.data;
+    const response = await fetch(`http://127.0.0.1:8000/api/merchant/${merchantId}/${endpoint}/`, {
+      credentials: 'include', // If you still need cookies/session
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return await response.json();
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error);
     return null;
@@ -64,6 +69,7 @@ const fetchMerchantData = async (merchantId, endpoint) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  // eslint-disable-next-line no-unused-vars
   const [notifications, setNotifications] = useState([]);
   const [merchantData, setMerchantData] = useState({
     topSellingItems: [],
@@ -77,9 +83,18 @@ function App() {
   const navigate = useNavigate();
   const merchantId = "b7a3e"; // Replace with actual merchant ID
 
+  // Fetch all merchant data at once
   useEffect(() => {
     const fetchAllMerchantData = async () => {
-      const [topSelling, leastSelling, hours, days, basketSize, orderValue, deliveryTime] = await Promise.all([
+      const [
+        topSelling,
+        leastSelling,
+        hours,
+        days,
+        basketSize,
+        orderValue,
+        deliveryTime
+      ] = await Promise.all([
         fetchMerchantData(merchantId, 'top-selling-items'),
         fetchMerchantData(merchantId, 'least-selling-items'),
         fetchMerchantData(merchantId, 'popular-order-hours'),
@@ -103,19 +118,25 @@ function App() {
     fetchAllMerchantData();
   }, [merchantId]);
 
+  // Fetch notifications
   useEffect(() => {
-    // Fetch notifications from backend if needed
     const fetchNotifications = async () => {
       try {
-        const response = await axios.get(`/api/merchant/${merchantId}/notifications/`);
-        setNotifications(response.data || []);
+        const response = await fetch(`http://127.0.0.1:8000/api/merchant/${merchantId}/notifications/`, {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        setNotifications(data || []);
       } catch (error) {
         console.error('Error fetching notifications:', error);
       }
     };
 
     fetchNotifications();
-  }, []);
+  }, [merchantId]);
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
@@ -129,6 +150,7 @@ function App() {
       <TodayInsights />
       <NotificationManager />
       <GrabAssistantFab />
+
       {/* Sidebar */}
       <div className="w-48 border-r border-gray-800 p-4 flex flex-col gap-6">
         <div className="flex items-center gap-2 mb-6">
@@ -262,14 +284,12 @@ function App() {
 
 // Dashboard content component
 function DashboardContent({ merchantData }) {
-  // merchantData is now received as a prop
-  
   // Format data for charts
   const popularHoursData = {
-    labels: merchantData.popularHours.map(h => `${h.hour}:00`),
+    labels: Array.isArray(merchantData.popularHours) ? merchantData.popularHours.map(h => h.hour) : [],
     datasets: [{
       label: 'Orders per Hour',
-      data: merchantData.popularHours.map(h => h.count),
+      data: Array.isArray(merchantData.popularHours) ? merchantData.popularHours.map(h => h.count) : [],
       backgroundColor: 'rgba(75, 192, 192, 0.2)',
       borderColor: 'rgba(75, 192, 192, 1)',
       borderWidth: 1
@@ -277,41 +297,43 @@ function DashboardContent({ merchantData }) {
   };
 
   const popularDaysData = {
-    labels: merchantData.popularDays.map(d => d.day),
+    labels: Array.isArray(merchantData.popularDays) ? merchantData.popularDays.map(d => d.day) : [],
     datasets: [{
       label: 'Orders per Day',
-      data: merchantData.popularDays.map(d => d.count),
+      data: Array.isArray(merchantData.popularDays) ? merchantData.popularDays.map(d => d.count) : [],
       backgroundColor: 'rgba(153, 102, 255, 0.2)',
       borderColor: 'rgba(153, 102, 255, 1)',
       borderWidth: 1
     }]
   };
+
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Analytics Cards */}
       <div className="col-span-3 grid grid-cols-3 gap-6 mb-6">
         <SalesCard
           icon={<ShoppingCart size={24} />}
-          value={merchantData.averageBasketSize?.toFixed(2) || '0'}
+          value={typeof merchantData.averageBasketSize === 'number' ? merchantData.averageBasketSize.toFixed(2) : '0'}
           label="Average Basket Size"
           change="+5%"
           changeColor="text-green-500"
         />
         <SalesCard
           icon={<Package size={24} />}
-          value={`$${merchantData.averageOrderValue?.toFixed(2) || '0'}`}
+          value={`$${typeof merchantData.averageOrderValue === 'number' ? merchantData.averageOrderValue.toFixed(2) : '0'}`}
           label="Average Order Value"
           change="+12%"
           changeColor="text-green-500"
         />
         <SalesCard
           icon={<History size={24} />}
-          value={`${merchantData.averageDeliveryTime?.toFixed(0) || '0'} min`}
+          value={`${typeof merchantData.averageDeliveryTime === 'number' ? merchantData.averageDeliveryTime.toFixed(0) : '0'} min`}
           label="Average Delivery Time"
           change="-2%"
           changeColor="text-red-500"
         />
       </div>
+
       {/* Charts Section */}
       <div className="col-span-2 space-y-6">
         {/* Popular Hours Chart */}
@@ -329,6 +351,7 @@ function DashboardContent({ merchantData }) {
             <Bar data={popularDaysData} options={{ maintainAspectRatio: false }} />
           </div>
         </div>
+
         {/* Today's Sales */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-1">Today's Sales</h2>
@@ -483,16 +506,15 @@ function DashboardContent({ merchantData }) {
         <div className="bg-gray-800 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">Top Selling Items</h3>
           <div className="space-y-4">
-            {merchantData.topSellingItems.map((item, index) => (
+            {Array.isArray(merchantData.topSellingItems) ? merchantData.topSellingItems.map((item, index) => (
               <ProductRow
-                key={item.id}
-                id={item.id}
-                name={item.name}
-                popularity={item.sales_count}
-                sales={item.total_sales}
+                key={item.item_id}
+                item_id={item.item_id}
+                item_name={item.item_name}
+                num_sales={item.num_sales}
                 color={`bg-green-${500 - (index * 100)}`}
               />
-            ))}
+            )) : <p className="text-gray-400">No data available</p>}
           </div>
         </div>
 
@@ -500,18 +522,18 @@ function DashboardContent({ merchantData }) {
         <div className="bg-gray-800 p-4 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">Least Selling Items</h3>
           <div className="space-y-4">
-            {merchantData.leastSellingItems.map((item, index) => (
+            {Array.isArray(merchantData.leastSellingItems) ? merchantData.leastSellingItems.map((item, index) => (
               <ProductRow
-                key={item.id}
-                id={item.id}
-                name={item.name}
-                popularity={item.sales_count}
-                sales={item.total_sales}
+                key={item.item_id}
+                item_id={item.item_id}
+                item_name={item.item_name}
+                num_sales={item.num_sales}
                 color={`bg-red-${500 - (index * 100)}`}
               />
-            ))}
+            )) : <p className="text-gray-400">No data available</p>}
           </div>
         </div>
+
         {/* Level */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Level</h2>
@@ -608,18 +630,26 @@ function SalesCard({ icon, value, label, change, changeColor }) {
   );
 }
 
-function ProductRow({ id, name, popularity, sales, color }) {
+function ProductRow({ id, name, popularity, sales, item_id, item_name, num_sales, color }) {
+  // Handle both data structures
+  const displayId = item_id || id;
+  const displayName = item_name || name;
+  const displaySales = num_sales || sales;
+  const displayPopularity = popularity || (num_sales ? (num_sales / 41529) * 100 : 0);
+
   return (
     <tr className="border-b border-gray-800">
-      <td className="py-4">{id}</td>
-      <td className="py-4">{name}</td>
+      <td className="py-4">{displayId}</td>
+      <td className="py-4">{displayName}</td>
       <td className="py-4 w-1/3">
         <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
-          <div className={`h-full ${color} rounded-full`} style={{ width: `${popularity}%` }}></div>
+          <div className={`h-full ${color} rounded-full`} style={{ width: `${displayPopularity}%` }}></div>
         </div>
       </td>
       <td className="py-4 text-right">
-        <span className={`px-2 py-1 rounded-md bg-gray-800 text-xs`}>{sales}%</span>
+        <span className={`px-2 py-1 rounded-md bg-gray-800 text-xs`}>
+          {typeof displaySales === 'number' ? displaySales.toLocaleString() : displaySales}
+        </span>
       </td>
     </tr>
   );

@@ -16,13 +16,7 @@ try:
     transaction_data_df = pd.read_csv(data_dir / 'transaction_data.csv')
     transaction_items_df = pd.read_csv(data_dir / 'transaction_items.csv')
     items_df = pd.read_csv(data_dir / 'items.csv')
-except Exception as e:
-    print(f"Error loading datasets: {e}")
 
-
-# --- Utility Functions ---
-
-def get_merchant_data(merchant_id):
     merged_df = pd.merge(merchants_df, items_df, on='merchant_id', how='inner')
     merged_df = pd.merge(merged_df, transaction_items_df, on='item_id', how='inner')
     merged_df = pd.merge(merged_df, transaction_data_df, on='order_id', how='inner')
@@ -36,7 +30,15 @@ def get_merchant_data(merchant_id):
     merged_df['driver_pickup_time'] = pd.to_datetime(merged_df['driver_pickup_time'])
     merged_df['join_date'] = pd.to_datetime(merged_df['join_date'], format='%d%m%Y')
 
-    return merged_df
+except Exception as e:
+    print(f"Error loading datasets: {e}")
+
+
+# --- Utility Functions ---
+
+def get_merchant_data(merchant_id):
+    result = merged_df[merged_df['merchant_id'] == merchant_id].copy()
+    return result.reset_index(drop=True)
 
 def get_top_selling_items(data, top_n=5):
     return (

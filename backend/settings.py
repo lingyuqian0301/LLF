@@ -7,7 +7,7 @@ SECRET_KEY = 'your-secret-key-here'  # Change this in production
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -25,6 +25,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # CorsMiddleware must come before CommonMiddleware
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -100,14 +101,17 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# CORS Configuration
+# Adjust these origins to match EXACTLY where your frontend runs
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     # If you also use http://127.0.0.1:3000, uncomment below:
+#     # "http://127.0.0.1:3000",
+# ]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Admin settings
 ADMIN_SITE_HEADER = "Grab Assistant Admin"
 ADMIN_SITE_TITLE = "Grab Assistant Admin Portal"
-ADMIN_INDEX_TITLE = "Welcome to Grab Assistant Administration" 
+ADMIN_INDEX_TITLE = "Welcome to Grab Assistant Administration"
