@@ -1,5 +1,22 @@
 import { useState, useEffect } from "react";
+import axios from 'axios';
+
+// Configure axios base URL
+axios.defaults.baseURL = 'http://localhost:8000';
+axios.defaults.withCredentials = true; // Required for cookies, if needed
 import { Routes, Route, useNavigate } from "react-router-dom";
+import { Line, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
 import {
   BarChart,
   Home,
@@ -22,52 +39,82 @@ import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 import GrabAssistant from "./pages/GrabAssistant";
 
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+// API functions
+const fetchMerchantData = async (merchantId, endpoint) => {
+  try {
+    const response = await axios.get(`/api/merchant/${merchantId}/${endpoint}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error);
+    return null;
+  }
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [notifications, setNotifications] = useState([]);
+  const [merchantData, setMerchantData] = useState({
+    topSellingItems: [],
+    leastSellingItems: [],
+    popularHours: [],
+    popularDays: [],
+    averageBasketSize: null,
+    averageOrderValue: null,
+    averageDeliveryTime: null
+  });
   const navigate = useNavigate();
+  const merchantId = "b7a3e"; // Replace with actual merchant ID
 
   useEffect(() => {
-    // Example notifications that would come from your analytics
-    const exampleNotifications = [
-      {
-        type: "trend_up",
-        title: "Sales Performance",
-        message: "Sales have increased by 15% this week",
-        data: {
-          "Weekly Growth": "15%",
-          "Total Sales": "$12,500",
-          "New Customers": "24"
-        }
-      },
-      {
-        type: "trend_down",
-        title: "Customer Engagement",
-        message: "Customer engagement dropped by 8%",
-        data: {
-          "Engagement Rate": "8% decrease",
-          "Active Users": "1,234",
-          "Time on Site": "4.2 mins"
-        }
-      },
-      {
-        type: "success",
-        title: "Campaign Success",
-        message: "New marketing campaign exceeded targets",
-        data: {
-          "Conversion Rate": "3.2%",
-          "Click-through": "1,500",
-          "ROI": "245%"
-        }
-      }
-    ];
+    const fetchAllMerchantData = async () => {
+      const [topSelling, leastSelling, hours, days, basketSize, orderValue, deliveryTime] = await Promise.all([
+        fetchMerchantData(merchantId, 'top-selling-items'),
+        fetchMerchantData(merchantId, 'least-selling-items'),
+        fetchMerchantData(merchantId, 'popular-order-hours'),
+        fetchMerchantData(merchantId, 'popular-order-days'),
+        fetchMerchantData(merchantId, 'average-basket-size'),
+        fetchMerchantData(merchantId, 'average-order-value'),
+        fetchMerchantData(merchantId, 'average-delivery-time')
+      ]);
 
-    // Show notifications with a delay
-    exampleNotifications.forEach((notification, index) => {
-      setTimeout(() => {
-        setNotifications(prev => [...prev, { ...notification, id: Date.now() + index }]);
-      }, index * 2000);
-    });
+      setMerchantData({
+        topSellingItems: topSelling || [],
+        leastSellingItems: leastSelling || [],
+        popularHours: hours || [],
+        popularDays: days || [],
+        averageBasketSize: basketSize,
+        averageOrderValue: orderValue,
+        averageDeliveryTime: deliveryTime
+      });
+    };
+
+    fetchAllMerchantData();
+  }, [merchantId]);
+
+  useEffect(() => {
+    // Fetch notifications from backend if needed
+    const fetchNotifications = async () => {
+      try {
+        const response = await axios.get(`/api/merchant/${merchantId}/notifications/`);
+        setNotifications(response.data || []);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    fetchNotifications();
   }, []);
 
   const handleTabClick = (tab) => {
@@ -205,7 +252,7 @@ function App() {
         </div>
 
         <Routes>
-          <Route path="/" element={<DashboardContent />} />
+          <Route path="/" element={<DashboardContent merchantData={merchantData} />} />
           <Route path="/grab-assistant" element={<GrabAssistant />} />
         </Routes>
       </div>
@@ -214,11 +261,74 @@ function App() {
 }
 
 // Dashboard content component
-function DashboardContent() {
+function DashboardContent({ merchantData }) {
+  // merchantData is now received as a prop
+  
+  // Format data for charts
+  const popularHoursData = {
+    labels: merchantData.popularHours.map(h => `${h.hour}:00`),
+    datasets: [{
+      label: 'Orders per Hour',
+      data: merchantData.popularHours.map(h => h.count),
+      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+      borderColor: 'rgba(75, 192, 192, 1)',
+      borderWidth: 1
+    }]
+  };
+
+  const popularDaysData = {
+    labels: merchantData.popularDays.map(d => d.day),
+    datasets: [{
+      label: 'Orders per Day',
+      data: merchantData.popularDays.map(d => d.count),
+      backgroundColor: 'rgba(153, 102, 255, 0.2)',
+      borderColor: 'rgba(153, 102, 255, 1)',
+      borderWidth: 1
+    }]
+  };
   return (
     <div className="grid grid-cols-3 gap-6">
-      {/* Left Column */}
+      {/* Analytics Cards */}
+      <div className="col-span-3 grid grid-cols-3 gap-6 mb-6">
+        <SalesCard
+          icon={<ShoppingCart size={24} />}
+          value={merchantData.averageBasketSize?.toFixed(2) || '0'}
+          label="Average Basket Size"
+          change="+5%"
+          changeColor="text-green-500"
+        />
+        <SalesCard
+          icon={<Package size={24} />}
+          value={`$${merchantData.averageOrderValue?.toFixed(2) || '0'}`}
+          label="Average Order Value"
+          change="+12%"
+          changeColor="text-green-500"
+        />
+        <SalesCard
+          icon={<History size={24} />}
+          value={`${merchantData.averageDeliveryTime?.toFixed(0) || '0'} min`}
+          label="Average Delivery Time"
+          change="-2%"
+          changeColor="text-red-500"
+        />
+      </div>
+      {/* Charts Section */}
       <div className="col-span-2 space-y-6">
+        {/* Popular Hours Chart */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Popular Order Hours</h3>
+          <div className="h-64">
+            <Bar data={popularHoursData} options={{ maintainAspectRatio: false }} />
+          </div>
+        </div>
+
+        {/* Popular Days Chart */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Popular Order Days</h3>
+          <div className="h-64">
+            <Bar data={popularDaysData} options={{ maintainAspectRatio: false }} />
+          </div>
+        </div>
         {/* Today's Sales */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-1">Today's Sales</h2>
@@ -367,8 +477,41 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Right Column */}
+      {/* Products Section */}
       <div className="space-y-6">
+        {/* Top Selling Items */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Top Selling Items</h3>
+          <div className="space-y-4">
+            {merchantData.topSellingItems.map((item, index) => (
+              <ProductRow
+                key={item.id}
+                id={item.id}
+                name={item.name}
+                popularity={item.sales_count}
+                sales={item.total_sales}
+                color={`bg-green-${500 - (index * 100)}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Least Selling Items */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Least Selling Items</h3>
+          <div className="space-y-4">
+            {merchantData.leastSellingItems.map((item, index) => (
+              <ProductRow
+                key={item.id}
+                id={item.id}
+                name={item.name}
+                popularity={item.sales_count}
+                sales={item.total_sales}
+                color={`bg-red-${500 - (index * 100)}`}
+              />
+            ))}
+          </div>
+        </div>
         {/* Level */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Level</h2>
