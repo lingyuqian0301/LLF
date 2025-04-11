@@ -440,12 +440,12 @@ function DashboardContent() {
 
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+              <div className="w-3 h-3 rounded-full bg-teal-400"></div>
               <span>Last Month</span>
               <div className="text-gray-300">$4,087</div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+              <div className="w-3 h-3 rounded-full bg-purple-400"></div>
               <span>This Month</span>
               <div className="text-gray-300">$5,506</div>
             </div>
