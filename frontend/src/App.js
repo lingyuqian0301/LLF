@@ -18,8 +18,6 @@ import {
 } from "lucide-react";
 import "./App.css";
 import NotificationManager from "./components/NotificationManager";
-import TodayInsights from "./components/TodayInsights";
-import GrabAssistantFab from "./components/GrabAssistantFab";
 import GrabAssistant from "./pages/GrabAssistant";
 
 function App() {
@@ -79,9 +77,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-gray-100">
-      <TodayInsights />
       <NotificationManager />
-      <GrabAssistantFab />
       {/* Sidebar */}
       <div className="w-48 border-r border-gray-800 p-4 flex flex-col gap-6">
         <div className="flex items-center gap-2 mb-6">

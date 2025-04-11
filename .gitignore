@@ -1,0 +1,26 @@
+# Ignore typical build artifacts
+dist/
+build/
+out/
+*.log
+*.tmp
+
+# Ignore system files
+*.DS_Store
+Thumbs.db
+
+# Ignore IDE/Editor settings
+.vscode/
+node_modules/
+
+# Add other files or folders to ignore below
+
+# all csv
+*.csv
+*.zip
+*.sqlite3
+*pyc
+
+
+# env files
+.env

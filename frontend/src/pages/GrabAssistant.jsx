@@ -1,278 +1,223 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, BarChart2, Package, ShoppingCart } from 'lucide-react';
-import DataChart from '../components/DataChart';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Bot, User, Package, ShoppingCart, BarChart2, AlertCircle, Settings, HelpCircle } from 'lucide-react';
+import axios from 'axios';
 
-const GrabAssistant = () => {
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api/',
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+function GrabAssistant() {
   const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  
-  // Auto-scroll to bottom when new messages arrive
+
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-  
-  // Focus input field when component mounts
+
+  // Initial welcome message
   useEffect(() => {
-    inputRef.current?.focus();
-    
-    // Display welcome message
-    setMessages([
-      {
-        type: 'assistant',
-        content: "Hello! I'm your Grab Assistant. How can I help with your business today?",
-        timestamp: new Date(),
-        suggestions: [
-          "Show me today's sales summary",
-          "Check my inventory status",
-          "Analyze my customer trends"
-        ]
-      }
-    ]);
+    setMessages([{
+      id: Date.now(),
+      text: 'Welcome to your shop dashboard! How can I help you today?',
+      sender: 'bot'
+    }]);
   }, []);
 
-  const sendMessage = async (text) => {
-    if (!text.trim()) return;
-    
-    // Add user message to chat
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || isLoading) return;
+
+    // Add user message
     const userMessage = {
-      type: 'user',
-      content: text,
-      timestamp: new Date()
+      id: Date.now(),
+      text: inputMessage,
+      sender: 'user'
     };
-    
     setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
+    setInputMessage('');
     setIsLoading(true);
-    
+
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch('http://localhost:8000/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: text }),
+      // Send to Django backend
+      const response = await api.post('ask-gemini/', {
+        query: inputMessage
       });
-      
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      
-      const data = await response.json();
-      
-      // Process and add assistant response
-      const assistantMessage = {
-        type: 'assistant',
-        content: data.response || "I've analyzed your request.",
-        timestamp: new Date(),
-        data: data.data || null,
-        suggestions: data.suggestions || []
+
+      // Add bot response
+      const botMessage = {
+        id: Date.now() + 1,
+        text: response.data.response,
+        sender: 'bot'
       };
-      
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error fetching from API:', error);
-      // Add error message
-      setMessages(prev => [...prev, {
-        type: 'assistant',
-        content: "I'm sorry, I couldn't process your request at the moment. Please try again.",
-        timestamp: new Date(),
-        isError: true
-      }]);
+      console.error('API Error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: error.response?.data?.error || 'Sorry, I encountered an error. Please try again.',
+        sender: 'bot'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    setInputValue(suggestion);
-    sendMessage(suggestion);
+  const handleQuickAction = async (actionId) => {
+    let query = '';
+    switch (actionId) {
+      case 'orders':
+        query = 'Show me recent orders and status updates';
+        break;
+      case 'products':
+        query = 'Provide product performance insights';
+        break;
+      case 'analytics':
+        query = 'Show sales analytics and metrics';
+        break;
+      case 'alerts':
+        query = 'List important alerts and notifications';
+        break;
+      default:
+        query = 'Help with dashboard features';
+    }
+
+    // Add quick action message
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      text: query,
+      sender: 'user'
+    }]);
+
+    try {
+      const response = await api.post('ask-gemini/', { query });
+      const botMessage = {
+        id: Date.now() + 1,
+        text: response.data.response,
+        sender: 'bot'
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('API Error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: error.response?.data?.error || 'Failed to fetch data',
+        sender: 'bot'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
-  
-  const contextBasedSuggestions = () => {
-    // If there's a context (like which section they navigated from), you can add specific suggestions
-    return (
-      <div className="flex flex-wrap gap-2 mt-4">
-        <button 
-          onClick={() => handleSuggestionClick("Generate sales report")}
-          className="bg-green-900/50 hover:bg-green-900/70 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <BarChart2 size={16} />
-          <span>Sales Report</span>
-        </button>
-        <button 
-          onClick={() => handleSuggestionClick("Check inventory status")}
-          className="bg-green-900/50 hover:bg-green-900/70 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <Package size={16} />
-          <span>Inventory Status</span>
-        </button>
-        <button 
-          onClick={() => handleSuggestionClick("Analyze customer trends")}
-          className="bg-green-900/50 hover:bg-green-900/70 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <ShoppingCart size={16} />
-          <span>Customer Trends</span>
-        </button>
-      </div>
-    );
-  };
+
+  const [quickActions] = useState([
+    { id: 'orders', icon: <ShoppingCart size={20} />, label: 'Order Management', description: 'View and manage your orders' },
+    { id: 'products', icon: <Package size={20} />, label: 'Product Insights', description: 'Get product performance analytics' },
+    { id: 'analytics', icon: <BarChart2 size={20} />, label: 'Sales Analytics', description: 'View sales and performance metrics' },
+    { id: 'alerts', icon: <AlertCircle size={20} />, label: 'Alerts', description: 'View important notifications' },
+  ]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-gray-900 p-4 rounded-lg mb-4">
-        <h1 className="text-2xl font-bold">Grab Assistant</h1>
-        <p className="text-gray-400">Your AI-powered business companion</p>
-        {contextBasedSuggestions()}
+    <div className="flex flex-col h-screen bg-gray-950">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-800">
+        <h1 className="text-xl font-semibold">Grab Assistant</h1>
+        <p className="text-sm text-gray-400">Your personal shop assistant</p>
       </div>
-      
-      <div className="flex-1 overflow-y-auto bg-gray-900 p-4 rounded-lg mb-4">
-        {/* Messages container */}
-        <div className="flex flex-col gap-4">
-          {messages.map((message, index) => (
-            <Message key={index} message={message} onSuggestionClick={handleSuggestionClick} />
-          ))}
-          
-          {isLoading && (
-            <div className="self-start bg-gray-800 text-white rounded-lg p-3 max-w-[80%] flex items-center gap-2">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-100"></div>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-200"></div>
-              </div>
-              <span className="text-gray-400 text-sm">Analyzing data...</span>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-      
-      {/* Input area */}
-      <div className="bg-gray-900 p-4 rounded-lg">
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage(inputValue);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me anything about your business..."
-            className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500/50"
-            disabled={isLoading}
-          />
-          <button 
-            type="submit"
-            className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading || !inputValue.trim()}
-          >
-            <Send size={20} />
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
 
-// Message component to handle different message types
-const Message = ({ message, onSuggestionClick }) => {
-  const { type, content, timestamp, data, suggestions, isError } = message;
-  
-  // Format the timestamp
-  const formattedTime = timestamp ? new Intl.DateTimeFormat('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(timestamp)) : '';
-  
-  // Render data snippets if available
-  const renderDataSnippet = () => {
-    if (!data) return null;
-    
-    return (
-      <div className="mt-3 bg-gray-800/50 p-3 rounded-lg border-l-4 border-green-500">
-        {data.type === 'metrics' ? (
-          <div className="grid grid-cols-2 gap-3">
-            {data.metrics.map((metric, idx) => (
-              <div key={idx} className="flex flex-col">
-                <span className="text-gray-400 text-xs">{metric.label}</span>
-                <span className={`font-bold ${metric.trend === 'up' ? 'text-green-400' : metric.trend === 'down' ? 'text-red-400' : 'text-white'}`}>
-                  {metric.value}
-                  {metric.trend === 'up' ? ' ▲' : metric.trend === 'down' ? ' ▼' : ''}
-                  {metric.percentage ? ` (${metric.percentage})` : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : data.type === 'chart' ? (
-          <div className="h-40 w-full">
-            <DataChart data={data} />
-          </div>
-        ) : (
-          <div>
-            {Object.entries(data).map(([key, value]) => (
-              <div key={key} className="flex justify-between border-b border-gray-700 py-1">
-                <span className="text-gray-400">{key}</span>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Render suggestions if available
-  const renderSuggestions = () => {
-    if (!suggestions || !suggestions.length) return null;
-    
-    return (
-      <div className="mt-3 flex flex-wrap gap-2">
-        {suggestions.map((suggestion, idx) => (
-          <button 
-            key={idx}
-            onClick={() => onSuggestionClick(suggestion)}
-            className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-lg text-sm"
+      {/* Quick Actions */}
+      <div className="grid grid-cols-4 gap-4 p-4 border-b border-gray-800">
+        {quickActions.map(action => (
+          <button
+            key={action.id}
+            onClick={() => handleQuickAction(action.id)}
+            className="flex flex-col items-center p-4 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
           >
-            {suggestion}
+            <div className="text-blue-500 mb-2">{action.icon}</div>
+            <span className="text-sm font-medium">{action.label}</span>
+            <span className="text-xs text-gray-400 mt-1">{action.description}</span>
           </button>
         ))}
       </div>
-    );
-  };
-  
-  return (
-    <div className={`flex ${type === 'user' ? 'justify-end' : 'justify-start'}`}>
-      <div 
-        className={`p-3 rounded-lg max-w-[80%] ${
-          type === 'user' 
-            ? 'bg-green-600 text-white' 
-            : isError 
-              ? 'bg-red-900/50 text-white' 
-              : 'bg-gray-800 text-white'
-        }`}
-      >
-        <div className="flex justify-between items-start mb-1">
-          <span className="font-medium">
-            {type === 'user' ? 'You' : 'Grab Assistant'}
-          </span>
-          <span className="text-xs opacity-70 ml-3">{formattedTime}</span>
+
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`flex items-start gap-2 max-w-[70%] ${
+                message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                message.sender === 'user' ? 'bg-blue-500' : 'bg-gray-700'
+              }`}>
+                {message.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
+              </div>
+              <div className={`p-3 rounded-lg ${
+                message.sender === 'user' ? 'bg-blue-500' : 'bg-gray-800'
+              }`}>
+                <p className="text-sm whitespace-pre-line">{message.text}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area */}
+      <div className="sticky bottom-0 bg-gray-950 border-t border-gray-800">
+        <form onSubmit={handleSendMessage} className="p-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 disabled:opacity-50"
+              disabled={!inputMessage.trim() || isLoading}
+            >
+              {isLoading ? (
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <>
+                  <Send size={18} />
+                  Send
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-between items-center p-4 border-t border-gray-800 text-sm text-gray-400">
+        <div className="flex items-center gap-2">
+          <HelpCircle size={16} />
+          <span>Need help? Type your question</span>
         </div>
-        
-        <div className="text-sm md:text-base">{content}</div>
-        
-        {type === 'assistant' && renderDataSnippet()}
-        {type === 'assistant' && renderSuggestions()}
+        <div className="flex items-center gap-2">
+          <Settings size={16} />
+          <span>Settings</span>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 export default GrabAssistant;
