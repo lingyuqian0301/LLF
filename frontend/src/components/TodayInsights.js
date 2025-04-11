@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign, Clock } from 'lucide-react';
+import axios from 'axios';
 
 function TodayInsights() {
   const [isVisible, setIsVisible] = useState(true);
-  const [insights] = useState([
+  const [insights, setInsights] = useState([]);
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const response = await axios.get('/api/merchant/insights/');
+        const data = response.data;
+        
+        setInsights([
     {
       icon: <TrendingUp className="w-5 h-5 text-green-500" />,
       title: "Sales Growth",
@@ -40,6 +49,14 @@ function TodayInsights() {
       color: "text-red-500"
     }
   ]);
+      } catch (error) {
+        console.error('Error fetching insights:', error);
+        setInsights([]);
+      }
+    };
+
+    fetchInsights();
+  }, []);
 
   // Auto-hide after 10 seconds
   useEffect(() => {
