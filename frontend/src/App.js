@@ -21,6 +21,7 @@ import NotificationManager from "./components/NotificationManager";
 import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 import GrabAssistant from "./pages/GrabAssistant";
+import SalesGrowthPopup from "./components/SalesGrowthPopup";
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -79,7 +80,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-gray-100">
-      <TodayInsights />
+      {/* <TodayInsights /> */}
       <NotificationManager />
       <GrabAssistantFab />
       {/* Sidebar */}
@@ -217,6 +218,7 @@ function App() {
 function DashboardContent() {
   return (
     <div className="grid grid-cols-3 gap-6">
+      <SalesGrowthPopup />
       {/* Left Column */}
       <div className="col-span-2 space-y-6">
         {/* Today's Sales */}
