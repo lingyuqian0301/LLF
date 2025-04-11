@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { MessageSquare, X, TrendingUp, AlertTriangle, ShoppingBag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 function GrabAssistantFab() {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const menuItems = [
     {
@@ -19,6 +21,11 @@ function GrabAssistantFab() {
       icon: <ShoppingBag className="w-5 h-5" />,
       label: "Merchandise",
       description: "Browse product catalog"
+    },
+    {
+      icon: <MessageSquare className="w-5 h-5" />,
+      label: "Grab Assistant",
+      description: "Chat with your personal assistant"
     }
   ];
 
@@ -48,7 +55,11 @@ function GrabAssistantFab() {
                   className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors duration-200"
                   onClick={() => {
                     // Handle menu item click
-                    console.log(`Selected: ${item.label}`);
+                    if (item.label === "Grab Assistant") {
+                      navigate('/grab-assistant');
+                    } else {
+                      console.log(`Selected: ${item.label}`);
+                    }
                     setIsOpen(false);
                   }}
                 >
@@ -69,4 +80,4 @@ function GrabAssistantFab() {
   );
 }
 
-export default GrabAssistantFab; 
+export default GrabAssistantFab;
