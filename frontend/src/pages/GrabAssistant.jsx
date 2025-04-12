@@ -70,9 +70,10 @@ function GrabAssistant() {
     try {
       // Example: call your backend
       const response = await api.post('ask-gemini/', {
-        query: inputMessage
+        query: inputMessage,
+        merchant_id: '2e8a5'  // Hardcoded merchant ID
       });
-
+      
       // Add bot response
       const botMessage = {
         id: Date.now() + 1,
@@ -148,7 +149,11 @@ function GrabAssistant() {
     }]);
 
     try {
-      const response = await api.post('ask-gemini/', { query });
+      const response = await api.post('ask-gemini/', {
+        query,
+        merchant_id: '2e8a5'  // Hardcoded merchant ID
+      });
+      
       const botMessage = {
         id: Date.now() + 1,
         text: response.data.response,
