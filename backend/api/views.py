@@ -6,8 +6,16 @@ import google.generativeai as genai
 import pandas as pd
 from dotenv import load_dotenv
 from pathlib import Path
+import re
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
 
+# Configuration
 load_dotenv()
+
+model = None
+
 
 # Dataset loading
 data_dir = Path("data/datasets/")
@@ -18,11 +26,28 @@ try:
     transaction_items_df = pd.read_csv(data_dir / 'transaction_items.csv')
     items_df = pd.read_csv(data_dir / 'items.csv')
 
+    merged_df = pd.merge(merchants_df, items_df, on='merchant_id', how='inner')
+    merged_df = pd.merge(merged_df, transaction_items_df, on='item_id', how='inner')
+    merged_df = pd.merge(merged_df, transaction_data_df, on='order_id', how='inner')
+
+    merged_df.drop(columns=['Unnamed: 0'], errors='ignore', inplace=True)
+    merged_df.drop(columns=[col for col in merged_df.columns if col.endswith('_drop')], inplace=True)
+
+    merged_df['order_time'] = pd.to_datetime(merged_df['order_time'])
+    merged_df['delivery_time'] = pd.to_datetime(merged_df['delivery_time'])
+    merged_df['driver_arrival_time'] = pd.to_datetime(merged_df['driver_arrival_time'])
+    merged_df['driver_pickup_time'] = pd.to_datetime(merged_df['driver_pickup_time'])
+    merged_df['join_date'] = pd.to_datetime(merged_df['join_date'], format='%d%m%Y')
+
+    # keywords sort by checkout, descending
+    keywords_df.sort_values(by='checkout', ascending=False, inplace=True)
+
 except Exception as e:
     print(f"Error loading datasets: {e}")
 
 
 # --- Utility Functions ---
+
 
 def get_merchant_data(merchant_id):
     try:
@@ -111,6 +136,8 @@ def get_avg_delivery_time(data):
 
 
 # --- API Views ---
+# Store chat sessions in memory (for demo/testing only)
+chat_sessions = {}
 
 # Store chat sessions in memory (for demo/testing only)
 chat_sessions = {}

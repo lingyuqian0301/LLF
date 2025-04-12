@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,16 +27,19 @@ import {
   LogOut,
   Search,
   Bell,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import "./App.css";
 
 // --- Import your custom components ---
-// Example: 
+// Example:
 import NotificationManager from "./components/NotificationManager";
 import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 // The below import is your new chat page
 import GrabAssistant from "./pages/GrabAssistant";
+import ProductPage from "./pages/ProductPage";
 
 // Register ChartJS components
 ChartJS.register(
@@ -107,11 +110,11 @@ function App() {
       setMerchantData({
         topSellingItems: topSelling || [],
         leastSellingItems: leastSelling || [],
-        popularHours: hours || [],
-        popularDays: days || [],
-        averageBasketSize: basketSize,
-        averageOrderValue: orderValue,
-        averageDeliveryTime: deliveryTime,
+        popularHours: hours || {},
+        popularDays: days || {},
+        average_basket_size: basketSize?.average_basket_size || 0,
+        average_order_value: orderValue?.average_order_value || 0,
+        average_delivery_time: deliveryTime?.average_delivery_time || 0,
       });
     };
 
@@ -143,6 +146,8 @@ function App() {
     setActiveTab(tab);
     if (tab === "message") {
       navigate("/grab-assistant");
+    } else if (tab === "product") {
+      navigate("/product");
     }
   };
 
@@ -300,8 +305,9 @@ function App() {
         </div>
 
         <Routes>
-          <Route path="/" element={<DashboardContent merchantData={merchantData} />} />
-          <Route path="/grab-assistant" element={<GrabAssistant />} />
+          <Route path="/" element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />} />
+          <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />} />
+          <Route path="/product" element={<ProductPage merchantId={merchantId} />} />
         </Routes>
       </div>
     </div>
@@ -311,41 +317,45 @@ function App() {
 // -----------------------------------------------
 // DashboardContent Component
 // -----------------------------------------------
-function DashboardContent({ merchantData }) {
+function DashboardContent({ merchantData, merchantId }) {
   const navigate = useNavigate();
 
   // Set up data for your existing “Popular Hours” chart
   const popularHoursData = {
-    labels: Array.isArray(merchantData.popularHours)
-      ? merchantData.popularHours.map((h) => h.hour)
+    labels: merchantData.popularHours
+      ? Object.keys(merchantData.popularHours).map(hour => `${hour}:00`)
       : [],
     datasets: [
       {
         label: "Orders per Hour",
-        data: Array.isArray(merchantData.popularHours)
-          ? merchantData.popularHours.map((h) => h.count)
+        data: merchantData.popularHours
+          ? Object.values(merchantData.popularHours)
           : [],
-        backgroundColor: "rgba(75, 192, 192, 0.2)",
-        borderColor: "rgba(75, 192, 192, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(59, 130, 246, 0.5)",
+        borderColor: "rgb(59, 130, 246)",
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
       },
     ],
   };
 
   // Set up data for your existing “Popular Days” chart
   const popularDaysData = {
-    labels: Array.isArray(merchantData.popularDays)
-      ? merchantData.popularDays.map((d) => d.day)
+    labels: merchantData.popularDays
+      ? Object.keys(merchantData.popularDays)
       : [],
     datasets: [
       {
         label: "Orders per Day",
-        data: Array.isArray(merchantData.popularDays)
-          ? merchantData.popularDays.map((d) => d.count)
+        data: merchantData.popularDays
+          ? Object.values(merchantData.popularDays)
           : [],
-        backgroundColor: "rgba(153, 102, 255, 0.2)",
-        borderColor: "rgba(153, 102, 255, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(168, 85, 247, 0.5)",
+        borderColor: "rgb(168, 85, 247)",
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
       },
     ],
   };
@@ -414,100 +424,170 @@ function DashboardContent({ merchantData }) {
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Analytics Cards */}
-      <div className="col-span-3 grid grid-cols-3 gap-6 mb-6">
-        <SalesCard
-          icon={<ShoppingCart size={24} />}
-          value={
-            typeof merchantData.averageBasketSize === "number"
-              ? merchantData.averageBasketSize.toFixed(2)
-              : "0"
-          }
-          label="Average Basket Size"
-          change="+5%"
-          changeColor="text-green-500"
-        />
-        <SalesCard
-          icon={<Package size={24} />}
-          value={
-            typeof merchantData.averageOrderValue === "number"
-              ? `$${merchantData.averageOrderValue.toFixed(2)}`
-              : "$0"
-          }
-          label="Average Order Value"
-          change="+12%"
-          changeColor="text-green-500"
-        />
-        <SalesCard
-          icon={<History size={24} />}
-          value={
-            typeof merchantData.averageDeliveryTime === "number"
-              ? merchantData.averageDeliveryTime.toFixed(0) + " min"
-              : "0 min"
-          }
-          label="Average Delivery Time"
-          change="-2%"
-          changeColor="text-red-500"
-        />
+      {/* Analytics Overview Section */}
+      <div className="bg-gray-900 rounded-lg p-5 col-span-3 mb-6">
+        <h2 className="text-xl font-semibold mb-1">Analytics Overview</h2>
+        <p className="text-gray-400 text-sm mb-4">Performance Summary</p>
+
+        <div className="grid grid-cols-4 gap-4">
+          <SalesCard
+            icon={<ShoppingCart className="text-green-500" size={24} />}
+            value={merchantData.average_basket_size?.toFixed(2) || "0"}
+            label="Average Basket Size"
+            change="+5% from yesterday"
+            changeColor="text-green-500"
+          />
+          <SalesCard
+            icon={<Package className="text-green-500" size={24} />}
+            value={`$${merchantData.average_order_value?.toFixed(2) || "124.32"}`}
+            label="Average Order Value"
+            change="+12% from yesterday"
+            changeColor="text-green-500"
+          />
+          <SalesCard
+            icon={<History className="text-green-500" size={24} />}
+            value={`${merchantData.average_delivery_time?.toFixed(0) || "39"} min`}
+            label="Average Delivery Time"
+            change="-2% from yesterday"
+            changeColor="text-red-500"
+          />
+          <SalesCard
+            icon={<BarChart2 className="text-green-500" size={24} />}
+            value={merchantData.topSellingItems?.length || "4"}
+            label="Active Products"
+            change="+8% from yesterday"
+            changeColor="text-green-500"
+          />
+        </div>
       </div>
 
       {/* Charts Section */}
       <div className="col-span-2 space-y-6">
-        {/* Popular Hours Chart */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Popular Order Hours</h3>
-          <div className="h-64">
-            <Bar data={popularHoursData} options={{ maintainAspectRatio: false }} />
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Analytics Overview</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/grab-assistant', { state: { showAnalytics: true } })}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <BarChart2 size={16} />
+              <span>View Full Analytics</span>
+            </button>
           </div>
         </div>
 
-        {/* Popular Days Chart */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Popular Order Days</h3>
-          <div className="h-64">
-            <Bar data={popularDaysData} options={{ maintainAspectRatio: false }} />
+        {/* Analytics Charts */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Popular Hours Chart */}
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Popular Order Hours</h3>
+            </div>
+            <div className="h-64">
+              <Line
+                data={popularHoursData}
+                options={{
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      grid: {
+                        color: 'rgba(75, 85, 99, 0.2)'
+                      },
+                      ticks: {
+                        color: '#9CA3AF'
+                      }
+                    },
+                    x: {
+                      grid: {
+                        color: 'rgba(75, 85, 99, 0.2)'
+                      },
+                      ticks: {
+                        color: '#9CA3AF'
+                      }
+                    }
+                  },
+                  plugins: {
+                    legend: {
+                      labels: {
+                        color: '#9CA3AF'
+                      }
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Popular Days Chart */}
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="text-purple-400" size={20} />
+              <h3 className="text-lg font-semibold">Popular Order Days</h3>
+            </div>
+            <div className="h-64">
+              <Line data={popularDaysData} options={{
+                maintainAspectRatio: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: {
+                      color: 'rgba(75, 85, 99, 0.2)'
+                    },
+                    ticks: {
+                      color: '#9CA3AF'
+                    }
+                  },
+                  x: {
+                    grid: {
+                      color: 'rgba(75, 85, 99, 0.2)'
+                    },
+                    ticks: {
+                      color: '#9CA3AF'
+                    }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#9CA3AF'
+                    }
+                  }
+                }
+              }} />
+            </div>
           </div>
         </div>
 
-        {/* Today's Sales (example) */}
-        <div className="bg-gray-900 rounded-lg p-5">
-          <h2 className="text-xl font-semibold mb-1">Today's Sales</h2>
-          <p className="text-gray-400 text-sm mb-4">Sales Summary</p>
 
-          <div className="grid grid-cols-4 gap-4">
-            <SalesCard
-              icon={<BarChart className="text-yellow-500" />}
-              value="$5k"
-              label="Total Sales"
-              change="+10% from yesterday"
-              changeColor="text-yellow-500"
-            />
-            <SalesCard
-              icon={<ShoppingCart className="text-white" />}
-              value="500"
-              label="Total Order"
-              change="+8% from yesterday"
-              changeColor="text-yellow-500"
-            />
-            <SalesCard
-              icon={<Package className="text-pink-400" />}
-              value="9"
-              label="Product Sold"
-              change="+2% from yesterday"
-              changeColor="text-yellow-500"
-            />
-            <SalesCard
-              icon={<User className="text-blue-400" />}
-              value="12"
-              label="New Customer"
-              change="+3% from yesterday"
-              changeColor="text-blue-400"
-            />
+
+
+                {/* Top Products Table */}
+                <div className="bg-gray-900 rounded-lg p-5 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Top Products</h2>
+              <p className="text-gray-400 text-sm">Best performing items</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 w-1/3">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <div className="text-green-500 text-sm font-medium mb-1">Total Revenue</div>
+                <div className="text-lg font-semibold">
+                  ${(merchantData.topSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
+                </div>
+                <div className="text-green-500 text-xs">+10% from yesterday</div>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <div className="text-green-500 text-sm font-medium mb-1">Total Sales</div>
+                <div className="text-lg font-semibold">
+                  {merchantData.topSellingItems?.[0]?.num_sales?.toLocaleString() || "0"}
+                </div>
+                <div className="text-green-500 text-xs">+8% from yesterday</div>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* A static "Top Products" table example */}
-        <div className="bg-gray-900 rounded-lg p-5">
-          <h2 className="text-xl font-semibold mb-6">Top Products</h2>
 
           <table className="w-full">
             <thead>
@@ -519,40 +599,80 @@ function DashboardContent({ merchantData }) {
               </tr>
             </thead>
             <tbody>
-              <ProductRow
-                id="01"
-                name="Home Decor Range"
-                popularity={75}
-                sales={46}
-                color="bg-yellow-500"
-              />
-              <ProductRow
-                id="02"
-                name="Disney Princess Dress"
-                popularity={55}
-                sales={17}
-                color="bg-teal-400"
-              />
-              <ProductRow
-                id="03"
-                name="Bathroom Essentials"
-                popularity={45}
-                sales={19}
-                color="bg-blue-400"
-              />
-              <ProductRow
-                id="04"
-                name="Apple Smartwatch"
-                popularity={30}
-                sales={29}
-                color="bg-purple-400"
-              />
+              {merchantData.topSellingItems?.slice(0, 4).map((item, index) => (
+                <ProductRow
+                  key={item.item_id}
+                  id={String(index + 1).padStart(2, '0')}
+                  name={item.item_name}
+                  popularity={Math.round((item.num_sales / (merchantData.topSellingItems[0]?.num_sales || 1)) * 100)}
+                  sales={item.num_sales}
+                  color={[
+                    'bg-green-500',
+                    'bg-green-400',
+                    'bg-green-300',
+                    'bg-green-200'
+                  ][index]}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+         {/* Least Products Table */}
+         <div className="bg-gray-900 rounded-lg p-5">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Least Products</h2>
+              <p className="text-gray-400 text-sm">Items needing attention</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 w-1/3">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <div className="text-red-500 text-sm font-medium mb-1">Total Revenue</div>
+                <div className="text-lg font-semibold">
+                  ${(merchantData.leastSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
+                </div>
+                <div className="text-red-500 text-xs">-5% from yesterday</div>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <div className="text-red-500 text-sm font-medium mb-1">Total Sales</div>
+                <div className="text-lg font-semibold">
+                  {merchantData.leastSellingItems?.[0]?.num_sales?.toLocaleString() || "0"}
+                </div>
+                <div className="text-red-500 text-xs">-3% from yesterday</div>
+              </div>
+            </div>
+          </div>
+
+          <table className="w-full">
+            <thead>
+              <tr className="text-gray-400">
+                <th className="text-left pb-4">#</th>
+                <th className="text-left pb-4">Name</th>
+                <th className="text-left pb-4">Popularity</th>
+                <th className="text-right pb-4">Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              {merchantData.leastSellingItems?.slice(0, 4).map((item, index) => (
+                <ProductRow
+                  key={item.item_id}
+                  id={String(index + 1).padStart(2, '0')}
+                  name={item.item_name}
+                  popularity={Math.round((item.num_sales / (merchantData.topSellingItems[0]?.num_sales || 1)) * 100)}
+                  sales={item.num_sales}
+                  color={[
+                    'bg-red-500',
+                    'bg-red-400',
+                    'bg-red-300',
+                    'bg-red-200'
+                  ][index]}
+                />
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Bottom Row */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 mt-6">
           {/* Earnings (example) */}
           <div className="bg-gray-900 rounded-lg p-5">
             <h2 className="text-xl font-semibold mb-1">Earnings</h2>
@@ -685,45 +805,9 @@ function DashboardContent({ merchantData }) {
           </div>
         </div>
 
-        {/* Top Selling Items (Table) */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Top Selling Items (Table)</h3>
-          <div className="space-y-4">
-            {Array.isArray(merchantData.topSellingItems) ? (
-              merchantData.topSellingItems.map((item, index) => (
-                <ProductRow
-                  key={item.item_id}
-                  item_id={item.item_id}
-                  item_name={item.item_name}
-                  num_sales={item.num_sales}
-                  color={`bg-green-${500 - index * 100}`}
-                />
-              ))
-            ) : (
-              <p className="text-gray-400">No data available</p>
-            )}
-          </div>
-        </div>
 
-        {/* Least Selling Items (Table) */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Least Selling Items (Table)</h3>
-          <div className="space-y-4">
-            {Array.isArray(merchantData.leastSellingItems) ? (
-              merchantData.leastSellingItems.map((item, index) => (
-                <ProductRow
-                  key={item.item_id}
-                  item_id={item.item_id}
-                  item_name={item.item_name}
-                  num_sales={item.num_sales}
-                  color={`bg-red-${500 - index * 100}`}
-                />
-              ))
-            ) : (
-              <p className="text-gray-400">No data available</p>
-            )}
-          </div>
-        </div>
+
+
 
         {/* Example “Level” section */}
         <div className="bg-gray-900 rounded-lg p-5">
@@ -859,19 +943,26 @@ function ProductRow({ id, name, popularity, sales, item_id, item_name, num_sales
   const displayPopularity = popularity || (num_sales ? (num_sales / 41529) * 100 : 0);
 
   return (
-    <tr className="border-b border-gray-800">
-      <td className="py-4">{displayId}</td>
-      <td className="py-4">{displayName}</td>
-      <td className="py-4 w-1/3">
-        <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
-          <div
-            className={`h-full ${color} rounded-full`}
-            style={{ width: `${displayPopularity}%` }}
-          ></div>
+    <tr className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
+      <td className="py-4 pl-2">{displayId}</td>
+      <td className="py-4">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{displayName}</span>
         </div>
       </td>
-      <td className="py-4 text-right">
-        <span className="px-2 py-1 rounded-md bg-gray-800 text-xs">
+      <td className="py-4 w-1/3">
+        <div className="flex items-center gap-3">
+          <div className="h-2 flex-1 bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${color} rounded-full transition-all duration-500`}
+              style={{ width: `${displayPopularity}%` }}
+            ></div>
+          </div>
+          <span className="text-xs text-gray-400 w-12">{displayPopularity}%</span>
+        </div>
+      </td>
+      <td className="py-4 text-right pr-2">
+        <span className="px-3 py-1.5 rounded-lg bg-gray-800 text-xs font-medium">
           {typeof displaySales === "number" ? displaySales.toLocaleString() : displaySales}
         </span>
       </td>
