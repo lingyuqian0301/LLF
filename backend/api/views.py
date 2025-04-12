@@ -266,93 +266,111 @@ def average_delivery_time_view(request, merchant_id):
     data = get_merchant_data(merchant_id)
     return Response({'average_delivery_time': get_avg_delivery_time(data)})
 
+
+
+
+
+
+
+
+# Cuisine keyword mapping
+cuisine_keywords = {
+    'Burgers': ['burger', 'patty', 'bun', 'cheeseburger', 'angus', 'beef', 'grill'],
+    'American': ['wings', 'fries', 'bbq', 'sandwich', 'hot dog', 'bacon', 'cheddar'],
+    'Asian': ['wok', 'stir-fry', 'dim sum', 'pho', 'sushi', 'noodle', 'dumpling'],
+    'Indian': ['curry', 'naan', 'tikka', 'masala', 'biryani', 'samosas', 'lentil'],
+    'Mexican': ['taco', 'burrito', 'quesadilla', 'guacamole', 'salsa', 'nachos'],
+    'Italian': ['pizza', 'pasta', 'risotto', 'bruschetta', 'parmesan', 'mozzarella'],
+    'Seafood': ['fish', 'shrimp', 'salmon', 'tuna', 'crab', 'lobster', 'oyster'],
+    # Add more cuisines as needed
+}
+
+try:
+    # --- Data Loading ---
+    keywords_df = pd.read_csv(data_dir / 'keywords.csv')
+    merchants_df = pd.read_csv(data_dir / 'merchant.csv')
+    items_df = pd.read_csv(data_dir / 'items.csv')
+    
+    # Clean data
+    keywords_df = keywords_df.dropna(subset=['keyword'])
+    items_df = items_df.dropna(subset=['item_name', 'cuisine_tag'])
+    
+    # Initialize model
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    # Precompute keyword embeddings
+    keywords_df['embedding'] = list(model.encode(keywords_df['keyword'].tolist()))
+    
+except Exception as e:
+    print(f"Initialization error: {e}")
+    raise
+
+def calculate_business_score(row):
+    """Normalize business metrics"""
+    max_checkout = keywords_df['checkout'].max()
+    max_order = keywords_df['order'].max()
+    return (0.4 * (row['checkout'] / max_checkout) + 0.6 * (row['order'] / max_order))
+
+def get_cuisine_relevance(keyword, cuisine):
+    """Check if keyword contains cuisine-specific terms"""
+    if cuisine not in cuisine_keywords:
+        return 0
+    return 1 if any(term in keyword.lower() for term in cuisine_keywords[cuisine]) else 0
+
 @api_view(['GET'])
-def merchant_recommendations(request, merchant_id):
+def enhanced_keyword_recommendations_view(request, merchant_id):
+    """Improved SEO recommendations with cuisine awareness"""
     try:
-        data = get_merchant_data(merchant_id)
-        if data.empty:
-            return Response({'error': 'No data found for this merchant'}, status=404)
+        # Get merchant items
+        merchant_items = items_df[items_df['merchant_id'] == merchant_id]
+        if merchant_items.empty:
+            return Response({'error': 'Merchant not found'}, status=404)
 
-        # Metrics
-        top_items = get_top_selling_items(data, top_n=5)
-        least_items = get_least_selling_items(data, bottom_n=5)
-        basket_size = get_average_basket_size(data)
-        avg_order_value = get_average_order_value(data)
-        avg_delivery_time = get_avg_delivery_time(data)
-        popular_hours = get_popular_order_hours(data).head(5)
-        popular_days = get_popular_order_days(data).head(5)
-
-        # Merchant profile
-        merchant_info = merchants_df[merchants_df['merchant_id'] == merchant_id].iloc[0].to_dict()
-        merchant_name = merchant_info.get('merchant_name', 'Unknown')
-        cuisine = merchant_info.get('cuisine_type', 'Unknown')
-        total_orders = len(data['order_id'].unique())
-
-        # Format for Gemini
-        summary = (
-            f"Merchant Name: {merchant_name}\n"
-            f"Cuisine: {cuisine}\n"
-            f"Total Orders: {total_orders}\n"
-            f"Top Selling Items: {[row['item_name'] for _, row in top_items.iterrows()]}\n"
-            f"Underperforming Items: {[row['item_name'] for _, row in least_items.iterrows()]}\n"
-            f"Average Basket Size: {basket_size} items\n"
-            f"Average Order Value: RM{avg_order_value}\n"
-            f"Average Delivery Time: {avg_delivery_time} minutes\n"
-            f"Peak Order Hours: {[f'{k}:00' for k in popular_hours.index.tolist()]}\n"
-            f"Peak Days: {[day for day in popular_days.index.tolist()]}\n"
-        )
-
-        # Improved Prompt for More Actionable Insights
-        prompt = f"""
-        You are a Grab Business Consultant AI that gives personalized, real-world business recommendations to food & beverage merchant-partners.
+        results = {}
         
-        Based on the performance data below, generate 3 to 5 actionable recommendations in this format:
-
-        [
-            {{
-                "title": "Short recommendation title",
-                "rationale": "Explain why this is important using the data insights.",
-                "action_steps": [
-                    "Step 1",
-                    "Step 2",
-                    ...
-                ],
-                "expected_impact": "What business outcome this could improve"
-            }},
-            ...
-        ]
-
-        Be practical and business-relevant — examples include bundling popular items, reducing delivery times, off-peak promotions, optimizing staffing, or retiring underperforming items.
-
-        --- MERCHANT PERFORMANCE DATA ---
-        {summary}
-        """
-
-        # Gemini call
-        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-
-        try:
-            recommendations = json.loads(response.text)
-        except:
-            recommendations = response.text
+        for _, item in merchant_items.iterrows():
+            item_name = item['item_name']
+            cuisine = item['cuisine_tag']
+            
+            # Generate item embedding
+            item_embedding = model.encode([item_name])[0]
+            
+            # Calculate similarities
+            keyword_embeddings = np.array(keywords_df['embedding'].tolist())
+            semantic_scores = cosine_similarity([item_embedding], keyword_embeddings)[0]
+            
+            # Calculate business scores
+            business_scores = keywords_df.apply(calculate_business_score, axis=1)
+            
+            # Calculate cuisine relevance
+            cuisine_scores = keywords_df['keyword'].apply(
+                lambda x: get_cuisine_relevance(x, cuisine)
+            )
+            
+            # Combine scores
+            combined_scores = (
+                0.5 * semantic_scores +
+                0.3 * business_scores +
+                0.2 * cuisine_scores
+            )
+            
+            # Get top results
+            result_df = keywords_df.copy()
+            result_df['score'] = combined_scores
+            result_df = result_df[result_df['score'] > 0.4].sort_values(
+                by=['score', 'checkout', 'order'], 
+                ascending=[False, False, False]
+            ).head(5)
+            
+            if not result_df.empty:
+                results[item_name] = result_df[
+                    ['keyword', 'score', 'checkout', 'order']
+                ].to_dict(orient='records')
 
         return Response({
             'merchant_id': merchant_id,
-            'merchant_name': merchant_name,
-            'metrics': {
-                'average_basket_size': basket_size,
-                'average_order_value': avg_order_value,
-                'average_delivery_time': avg_delivery_time,
-                'top_items': top_items.to_dict('records'),
-                'underperforming_items': least_items.to_dict('records'),
-                'peak_hours': popular_hours.to_dict(),
-                'peak_days': popular_days.to_dict()
-            },
-            'recommendations': recommendations
+            'recommendations': results
         })
 
     except Exception as e:
         return Response({'error': str(e)}, status=500)
-
