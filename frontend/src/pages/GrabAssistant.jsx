@@ -202,7 +202,7 @@ function GrabAssistant({ merchantData, merchantId }) {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim()) return;
 
     // Add user message
     const userMessage = {
@@ -215,140 +215,159 @@ function GrabAssistant({ merchantData, merchantId }) {
     setIsLoading(true);
 
     try {
-      let response;
+      let botResponse = '';
       
-      // Handle different contexts
-      if (location.state?.fromKeyword || activeContext?.type === 'product') {
+      // Handle recommendation context
+      if (activeContext?.type === 'recommendation') {
+        const { recommendation, contextData } = activeContext;
+        
+        // Process the user's question about the recommendation
+        if (inputMessage.toLowerCase().includes('steps') || inputMessage.toLowerCase().includes('how')) {
+          botResponse = `Here are the detailed steps to implement this recommendation:\n\n${recommendation.action_steps.map((step, i) => `${i + 1}. ${step}`).join('\n')}\n\nWould you like me to create a timeline for implementing these steps?`;
+          setSuggestions(['Yes, create timeline', 'Modify steps', 'Show me the data']);
+        } 
+        else if (inputMessage.toLowerCase().includes('data') || inputMessage.toLowerCase().includes('metrics')) {
+          // Format relevant metrics based on recommendation type
+          if (recommendation.title.includes('Menu') || recommendation.title.includes('Basket Size')) {
+            botResponse = `Here's the relevant data for ${recommendation.title}:\n\n` +
+              `• Average Basket Size: ${contextData.averages.basketSize} items\n` +
+              `• Average Order Value: $${contextData.averages.orderValue}\n\n` +
+              'Top Performing Items:\n' +
+              contextData.topItems.map(item => `• ${item.item_name}: ${item.num_sales} sales`).join('\n');
+          } 
+          else if (recommendation.title.includes('Delivery')) {
+            botResponse = `Delivery Performance Metrics:\n\n` +
+              `• Average Delivery Time: ${contextData.averages.deliveryTime} minutes\n\n` +
+              'Peak Hours (Orders):\n' +
+              Object.entries(contextData.peakHours)
+                .sort(([,a], [,b]) => b - a)
+                .map(([hour, orders]) => `• ${hour}:00: ${orders} orders`)
+                .join('\n');
+          }
+          setSuggestions(['How can we improve?', 'Compare to industry average', 'Generate action plan']);
+        }
+        else if (inputMessage.toLowerCase().includes('roi') || inputMessage.toLowerCase().includes('impact')) {
+          botResponse = `Expected Impact Analysis:\n\n` +
+            `${recommendation.expected_impact}\n\n` +
+            `Based on your current metrics:\n` +
+            `• Average Order Value: $${contextData.averages.orderValue}\n` +
+            `• Average Basket Size: ${contextData.averages.basketSize} items\n\n` +
+            `Would you like me to calculate potential revenue impact based on different improvement scenarios?`;
+          setSuggestions(['Calculate 10% improvement', 'Calculate 25% improvement', 'Show implementation plan']);
+        }
+        else {
+          botResponse = `I understand you're asking about ${inputMessage}\n\n` +
+            `This is related to our recommendation: ${recommendation.title}\n\n` +
+            `${recommendation.rationale}\n\n` +
+            `What specific aspect would you like to know more about?`;
+          setSuggestions(['Show me the data', 'How to implement?', 'Expected impact']);
+        }
+      } 
+      else if (location.state?.fromKeyword || activeContext?.type === 'product') {
         // Product keyword enhancement endpoint
-        response = await api.post(`merchant/${merchantId || '2e8a5'}/enhanced-keyword-recommendations/`, {
+        const response = await api.post(`merchant/${merchantId || '2e8a5'}/enhanced-keyword-recommendations/`, {
           query: inputMessage
         });
-      } else if (location.state?.fromRecommendation || activeContext?.type === 'recommendation') {
-        // Recommendations endpoint
-        response = await api.post('ask-gemini/', {
-          query: inputMessage,
-          merchant_id: merchantId || '2e8a5',
-          context: activeContext
-        });
-      } else {
-        // Default endpoint for general queries
-        response = await api.post('ask-gemini/', {
-          query: inputMessage,
-          merchant_id: merchantId || '2e8a5'
-        });
+        botResponse = response.data.message || 'Here are my thoughts on your product keywords...';
+      } 
+      else {
+        // Default response for non-recommendation context
+        botResponse = `I understand you're asking about: ${inputMessage}\n\nLet me help you with that...`;
+        setSuggestions(['Tell me more', 'How can I improve this?', 'What are the trends?']);
       }
 
       // Add bot response
-      const botMessage = {
-        id: Date.now() + 1,
-        text: response.data.response,
-        sender: 'bot'
-      };
-      setMessages(prev => [...prev, botMessage]);
-
-      // Update suggestions based on context
-      if (location.state?.fromKeyword || activeContext?.type === 'product') {
-        setSuggestions([
-          'Tell me more about this product',
-          'How can I improve its performance?',
-          'Show me similar products',
-          'What are the trending keywords?'
-        ]);
-      }
+      setTimeout(() => {
+        const botMessage = {
+          id: Date.now(),
+          text: botResponse,
+          sender: 'bot'
+        };
+        setMessages(prev => [...prev, botMessage]);
+        setIsLoading(false);
+      }, 1000);
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Error:', error);
       const errorMessage = {
-        id: Date.now() + 1,
-        text: error.response?.data?.error || 'Sorry, I encountered an error. Please try again.',
+        id: Date.now(),
+        text: 'I apologize, but I encountered an error processing your request.',
         sender: 'bot'
       };
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
       setIsLoading(false);
+      setSuggestions(['Try again', 'Ask something else', 'Help']);
     }
   };
 
-  // Enhanced Business Insights with Keyword Analysis
+  // Enhanced Business Insights with Recommendations Analysis
   const handleBusinessInsight = async () => {
     setIsLoading(true);
     try {
-      // Fetch keyword recommendations
-      const keywordResponse = await api.get(`merchant/2e8a5/enhanced-keyword-recommendations/`);
-      const recommendations = keywordResponse.data.recommendations;
+      // Fetch recommendations from API
+      const response = await api.get('api/merchant/2e8a5/recommendations/');
+      const { metrics, recommendations: recommendationsJson } = response.data;
+      
+      // Parse recommendations JSON string
+      const recommendations = JSON.parse(recommendationsJson.replace(/```json\n|```/g, ''));
 
       // Prepare comprehensive analysis data
       const analysisData = {
-        query: "Analyze my business performance and provide insights",
-        merchant_id: '2e8a5',
-        context: {
-          sales_data: {
-            top_items: merchantData.topSellingItems,
-            least_items: merchantData.leastSellingItems,
-            popular_hours: merchantData.popularHours,
-            popular_days: merchantData.popularDays
-          },
-          keyword_insights: {
-            recommendations: recommendations,
-            trends: Object.entries(recommendations).map(([product, keywords]) => ({
-              product,
-              top_keywords: keywords.slice(0, 3),
-              avg_score: keywords.reduce((sum, k) => sum + k.score, 0) / keywords.length,
-              potential_reach: keywords.reduce((sum, k) => sum + k.checkout, 0)
-            }))
-          },
-          metrics: {
-            avg_order_value: merchantData.averageOrderValue,
-            total_products: merchantData.activeProducts,
-            delivery_time: merchantData.averageDeliveryTime
-          }
-        }
+        merchant_id: response.data.merchant_id,
+        merchant_name: response.data.merchant_name,
+        metrics: {
+          average_basket_size: metrics.average_basket_size,
+          average_order_value: metrics.average_order_value,
+          average_delivery_time: metrics.average_delivery_time,
+          top_items: metrics.top_items,
+          underperforming_items: metrics.underperforming_items,
+          peak_hours: metrics.peak_hours,
+          peak_days: metrics.peak_days
+        },
+        recommendations: recommendations
       };
 
-      // Get enhanced insights from Gemini
-      const response = await api.post('ask-gemini/', analysisData);
-
-      let botResponse = response.data.response;
-
-      // Format numbers in the response for better readability
-      // Remove any markdown formatting
-      botResponse = botResponse.replace(/[*_]/g, '');
-
-      // Format numbers
-      botResponse = botResponse.replace(/\b\d+\b/g, (match) => {
-        const num = parseInt(match);
-        if (num >= 1000) {
-          return num.toLocaleString();
-        }
-        return match;
-      });
-
-      // Update suggestions
-      const newSuggestions = [
-        'How can I sell more of my best items?',
-        'What prices should I set for my items?',
-        'Should I put slow-selling items on sale?',
-        'Which items should I buy more of?',
-        'When do my items sell the most?',
-        'What items are not selling well?',
-        'How can I make more profit?'
-      ].sort(() => 0.5 - Math.random()).slice(0, 3);
-
-      setSuggestions(newSuggestions);
-
-      const botMessage = {
+      // Generate insights message
+      const insightMessage = {
         id: Date.now(),
-        text: botResponse,
+        text: `Based on your business data for ${analysisData.merchant_name}, here are key insights:\n\n` +
+          `1. Performance Metrics:\n` +
+          `   • Average Basket Size: ${metrics.average_basket_size.toFixed(2)} items\n` +
+          `   • Average Order Value: $${metrics.average_order_value.toFixed(2)}\n` +
+          `   • Average Delivery Time: ${metrics.average_delivery_time.toFixed(2)} minutes\n\n` +
+          `2. Top Performing Items:\n${metrics.top_items.map(item => `   • ${item.item_name}: ${item.num_sales} sales`).join('\n')}\n\n` +
+          `3. Peak Hours:\n${Object.entries(metrics.peak_hours)
+            .sort(([,a], [,b]) => b - a)
+            .map(([hour, orders]) => `   • ${hour}:00: ${orders} orders`)
+            .join('\n')}\n\n` +
+          `4. Peak Days:\n${Object.entries(metrics.peak_days)
+            .sort(([,a], [,b]) => b - a)
+            .map(([day, orders]) => `   • ${day}: ${orders} orders`)
+            .join('\n')}\n\n` +
+          `I've analyzed your data and prepared several recommendations to improve your business performance. Would you like to explore any of these areas?`,
         sender: 'bot'
       };
-      setMessages(prev => [...prev, botMessage]);
+
+      setMessages(prev => [...prev, insightMessage]);
+      setSuggestions([
+        'Show recommendations',
+        'Analyze peak hours',
+        'Review menu performance'
+      ]);
+
+      // Store analysis data in context for future reference
+      setActiveContext({
+        type: 'business_insight',
+        data: analysisData
+      });
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Error fetching business insights:', error);
       const errorMessage = {
         id: Date.now(),
-        text: error.response?.data?.error || 'Sorry, I encountered an error analyzing the business insights. Please try again.',
+        text: 'I apologize, but I encountered an error while analyzing your business data.',
         sender: 'bot'
       };
       setMessages(prev => [...prev, errorMessage]);
+      setSuggestions(['Try again', 'View recommendations', 'Help']);
     } finally {
       setIsLoading(false);
     }

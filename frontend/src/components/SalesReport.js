@@ -1,100 +1,74 @@
-import React, { useState } from 'react';
-import { BarChart2, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BarChart2, ArrowRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const mockData = {
-  "merchant_id": "2e8a5",
-  "merchant_name": "Burger Barn",
-  "metrics": {
-    "average_basket_size": 1.01,
-    "average_order_value": 124.32,
-    "average_delivery_time": 38.61,
-    "top_items": [
-      { "item_id": 9, "item_name": "Double Patty Burger", "num_sales": 6462 },
-      { "item_id": 31, "item_name": "Fries", "num_sales": 6431 },
-      { "item_id": 19, "item_name": "Classic Cheeseburger", "num_sales": 5389 },
-      { "item_id": 58, "item_name": "Bacon Mushroom Burger", "num_sales": 4508 }
-    ],
-    "underperforming_items": [
-      { "item_id": 58, "item_name": "Bacon Mushroom Burger", "num_sales": 4508 },
-      { "item_id": 19, "item_name": "Classic Cheeseburger", "num_sales": 5389 },
-      { "item_id": 31, "item_name": "Fries", "num_sales": 6431 },
-      { "item_id": 9, "item_name": "Double Patty Burger", "num_sales": 6462 }
-    ],
-    "peak_hours": {
-      "14": 1409,
-      "7": 1388,
-      "20": 1373,
-      "21": 1367,
-      "6": 1356
-    },
-    "peak_days": {
-      "Friday": 3335,
-      "Saturday": 3307,
-      "Wednesday": 3287,
-      "Thursday": 3245,
-      "Monday": 3234
-    }
-  },
-  recommendations: `[
-    {
-      "title": "Optimize Menu Based on Performance Discrepancies",
-      "rationale": "While the top-selling items are 'Double Patty Burger', 'Fries', 'Classic Cheeseburger', 'Bacon Mushroom Burger', the data shows all of them are also underperforming. This suggests a potential issue with presentation, pricing, or customer expectation. Focus on enhancing the appeal and perceived value of these items.",
-      "action_steps": [
-        "Conduct customer surveys or feedback sessions specifically targeting these items to understand the reason behind the underperformance despite their popularity.",
-        "Analyze competitor pricing and offerings for similar items. Adjust pricing or bundle configurations to be more competitive.",
-        "Review item descriptions and photographs on the Grab platform to ensure they are appealing and accurately represent the product. Consider professional photography.",
-        "Implement a limited-time promotion for these items to gauge price sensitivity and potential demand shifts."
-      ],
-      "expected_impact": "Increased order frequency and improved customer satisfaction by addressing the discrepancy between popularity and perceived value."
-    },
-    {
-      "title": "Increase Average Basket Size through Bundling",
-      "rationale": "An average basket size of 1.01 items is extremely low. Customers are essentially only ordering one item per order. Bundling popular items can significantly increase this number.",
-      "action_steps": [
-        "Create bundled meals featuring a burger (Double Patty or Classic Cheeseburger, given their high order volume) with Fries and a drink at a discounted price compared to ordering individually.",
-        "Offer 'Upsize' options, such as a larger portion of Fries or an additional patty, at a minimal cost to encourage customers to increase their order value.",
-        "Prominently display bundle options and upsize opportunities on the GrabFood menu with attractive visuals and clear pricing."
-      ],
-      "expected_impact": "Significant increase in average basket size and overall revenue per order."
-    },
-    {
-      "title": "Improve Delivery Time During Peak Hours",
-      "rationale": "An average delivery time of 38.61 minutes is relatively high and could deter customers, especially during peak ordering hours (14:00, 7:00, 20:00, 21:00, 6:00). Reducing delivery time will improve customer satisfaction and encourage repeat orders.",
-      "action_steps": [
-        "Analyze kitchen workflow during peak hours to identify bottlenecks and inefficiencies. Implement strategies to streamline food preparation processes.",
-        "Optimize delivery driver allocation and route planning to minimize travel time. Consider designating specific drivers for peak hour deliveries.",
-        "Explore partnerships with additional delivery services or expand the in-house delivery team to handle increased demand during peak periods.",
-        "Communicate estimated delivery times accurately to customers and provide updates on order status."
-      ],
-      "expected_impact": "Increased customer satisfaction, higher order volume during peak hours, and improved overall restaurant rating on the Grab platform."
-    },
-    {
-      "title": "Leverage Peak Day Data for Targeted Promotions",
-      "rationale": "Orders are highest on Friday, Saturday, Wednesday, Thursday, and Monday. Implement day-specific promotions to further boost sales on these days or to incentivize orders on slower days.",
-      "action_steps": [
-        "Offer a 'Burger of the Day' promotion on Wednesdays and Thursdays to drive traffic during mid-week.",
-        "Create a 'Weekend Feast' bundle available on Fridays and Saturdays targeting family or group orders.",
-        "Implement a 'Monday Blues Buster' promotion, offering a discount on specific items to encourage orders on the start of the week."
-      ],
-      "expected_impact": "Increased sales on peak days and potential to shift some demand to slower days, optimizing kitchen and staffing resources."
-    }
-  ]`
-};
+// Create an Axios instance
+const api = axios.create({
+  baseURL: 'http://localhost:8000',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
 
-const SalesReport = ({ merchantId }) => {
+const SalesReport = ({ merchantId = '2e8a5' }) => {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockData);
-  
-  const { merchant_name, recommendations } = data;
-  const parsedRecommendations = JSON.parse(recommendations);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await api.get(`/api/merchant/${merchantId}/recommendations/`);
+        setData(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching recommendations:', err);
+        setError('Failed to load recommendations. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [merchantId]);
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-900 text-white min-h-[400px] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-gray-900 text-white min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { merchant_name, recommendations: recommendationsJson, metrics } = data;
+  const parsedRecommendations = JSON.parse(recommendationsJson.replace(/```json\n|```/g, ''));
 
   const handleRecommendationClick = (recommendation) => {
     navigate('/grab-assistant', {
       state: {
         fromRecommendation: true,
         recommendation: recommendation,
-        metrics: data.metrics,
+        metrics: metrics,
         message: `Tell me more about: ${recommendation.title}`,
         suggestions: [
           'What steps should I take first?',
@@ -104,14 +78,14 @@ const SalesReport = ({ merchantId }) => {
           'Generate an implementation plan'
         ],
         contextData: {
-          topItems: data.metrics.top_items,
-          underperformingItems: data.metrics.underperforming_items,
-          peakHours: data.metrics.peak_hours,
-          peakDays: data.metrics.peak_days,
+          topItems: metrics.top_items,
+          underperformingItems: metrics.underperforming_items,
+          peakHours: metrics.peak_hours,
+          peakDays: metrics.peak_days,
           averages: {
-            basketSize: data.metrics.average_basket_size,
-            orderValue: data.metrics.average_order_value,
-            deliveryTime: data.metrics.average_delivery_time
+            basketSize: metrics.average_basket_size,
+            orderValue: metrics.average_order_value,
+            deliveryTime: metrics.average_delivery_time
           }
         }
       }
