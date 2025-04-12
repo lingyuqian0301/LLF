@@ -75,7 +75,7 @@ const MerchantAnalytics = ({ merchantId }) => {
             chartData: {
               labels: ['Average Order Value'],
               datasets: [{
-                label: 'Value ($)',
+                label: 'Value (RM)',
                 data: [value.data.average_value],
                 backgroundColor: '#34D399'
               }]

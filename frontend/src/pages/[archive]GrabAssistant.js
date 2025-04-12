@@ -84,7 +84,7 @@ function GrabAssistant() {
         message = 'Product Performance:\n- Top Seller: Product A (50 sales)\n- Low Stock: Product B (2 left)\n- Trending: Product C (+20% views)';
         break;
       case 'analytics':
-        message = 'Sales Analytics:\n- Today: $1,234\n- This Week: $8,765\n- Conversion Rate: 3.2%';
+        message = 'Sales Analytics:\n- Today: RM1,234\n- This Week: RM8,765\n- Conversion Rate: 3.2%';
         break;
       case 'alerts':
         message = 'Important Alerts:\n- Low stock alert: Product B\n- New order received: #1237\n- Customer review: 5 stars';

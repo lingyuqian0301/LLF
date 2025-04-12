@@ -29,6 +29,7 @@ import {
   Bell,
   Clock,
   Calendar,
+  DollarSign
 } from "lucide-react";
 import "./App.css";
 
@@ -40,6 +41,7 @@ import GrabAssistantFab from "./components/GrabAssistantFab";
 // The below import is your new chat page
 import GrabAssistant from "./pages/GrabAssistant";
 import ProductPage from "./pages/ProductPage";
+import OperationPage from "./pages/OperationPage";
 
 // Register ChartJS components
 ChartJS.register(
@@ -148,6 +150,8 @@ function App() {
       navigate("/grab-assistant");
     } else if (tab === "product") {
       navigate("/product");
+    } else if (tab === "operation") {
+      navigate("/operation");
     }
   };
 
@@ -222,6 +226,16 @@ function App() {
 
         <button
           className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "operation" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
+          onClick={() => handleTabClick("operation")}
+        >
+          <DollarSign size={18} />
+          <span>Operation</span>
+        </button>
+
+        <button
+          className={`flex items-center gap-3 p-2 rounded-md ${
             activeTab === "salesReport" ? "bg-gray-800" : "hover:bg-gray-900"
           }`}
           onClick={() => handleTabClick("salesReport")}
@@ -250,65 +264,67 @@ function App() {
           <span>Settings</span>
         </button>
 
-        <button
-          className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "favourite" ? "bg-gray-800" : "hover:bg-gray-900"
-          }`}
-          onClick={() => handleTabClick("favourite")}
-        >
-          <Star size={18} />
-          <span>Favourite</span>
-        </button>
-
-        <button
-          className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "history" ? "bg-gray-800" : "hover:bg-gray-900"
-          }`}
-          onClick={() => handleTabClick("history")}
-        >
-          <History size={18} />
-          <span>History</span>
-        </button>
-
-        <button
-          className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "signout" ? "bg-gray-800" : "hover:bg-gray-900"
-          }`}
-          onClick={() => handleTabClick("signout")}
-        >
-          <LogOut size={18} />
-          <span>Signout</span>
-        </button>
+        {/* ... rest of the sidebar code ... */}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 overflow-auto">
-        {/* Search Bar */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="relative w-1/2">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Search here..."
-              className="pl-10 bg-gray-900 border-gray-800 text-gray-300 w-full rounded-md p-2"
-            />
-          </div>
+      <div className="flex-1 overflow-auto">
+        {/* Top Bar */}
+        <div className="sticky top-0 z-10 bg-gray-950 border-b border-gray-800 p-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Bell size={20} />
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-              U
+            <h1 className="text-xl font-bold">
+              {activeTab === "dashboard" && "Dashboard"}
+              {activeTab === "profile" && "Profile"}
+              {activeTab === "leaderboard" && "Leaderboard"}
+              {activeTab === "order" && "Order Management"}
+              {activeTab === "product" && "Product Management"}
+              {activeTab === "operation" && "Operation Management"}
+              {activeTab === "salesReport" && "Sales Report"}
+              {activeTab === "message" && "Grab Assistant"}
+              {activeTab === "settings" && "Settings"}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button className="relative p-2 rounded-full hover:bg-gray-800">
+              <Bell size={20} />
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+              <span className="font-semibold">JD</span>
             </div>
           </div>
         </div>
 
-        <Routes>
-          <Route path="/" element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />} />
-          <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />} />
-          <Route path="/product" element={<ProductPage merchantId={merchantId} />} />
-        </Routes>
+        {/* Page Content */}
+        <div className="p-6">
+          <Routes>
+            <Route
+              path="/"
+              element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />}
+            />
+            <Route
+              path="/grab-assistant"
+              element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />}
+            />
+            <Route
+              path="/product"
+              element={<ProductPage merchantId={merchantId} />}
+            />
+            <Route
+              path="/operation"
+              element={<OperationPage merchantId={merchantId} />}
+            />
+          </Routes>
+        </div>
       </div>
     </div>
   );
@@ -439,7 +455,7 @@ function DashboardContent({ merchantData, merchantId }) {
           />
           <SalesCard
             icon={<Package className="text-green-500" size={24} />}
-            value={`$${merchantData.average_order_value?.toFixed(2) || "124.32"}`}
+            value={`RM${merchantData.average_order_value?.toFixed(2) || "124.32"}`}
             label="Average Order Value"
             change="+12% from yesterday"
             changeColor="text-green-500"
@@ -575,7 +591,7 @@ function DashboardContent({ merchantData, merchantId }) {
               <div className="bg-gray-800 rounded-lg p-3">
                 <div className="text-green-500 text-sm font-medium mb-1">Total Revenue</div>
                 <div className="text-lg font-semibold">
-                  ${(merchantData.topSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
+                  RM{(merchantData.topSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
                 </div>
                 <div className="text-green-500 text-xs">+10% from yesterday</div>
               </div>
@@ -628,7 +644,7 @@ function DashboardContent({ merchantData, merchantId }) {
               <div className="bg-gray-800 rounded-lg p-3">
                 <div className="text-red-500 text-sm font-medium mb-1">Total Revenue</div>
                 <div className="text-lg font-semibold">
-                  ${(merchantData.leastSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
+                  RM{(merchantData.leastSellingItems?.[0]?.num_sales * 10 || 0).toLocaleString()}
                 </div>
                 <div className="text-red-500 text-xs">-5% from yesterday</div>
               </div>
@@ -678,7 +694,7 @@ function DashboardContent({ merchantData, merchantId }) {
             <h2 className="text-xl font-semibold mb-1">Earnings</h2>
             <p className="text-gray-400 text-sm mb-4">Total Expense</p>
 
-            <div className="text-3xl font-bold text-teal-400 mb-2">$6078.76</div>
+            <div className="text-3xl font-bold text-teal-400 mb-2">RM6078.76</div>
             <p className="text-gray-400 text-sm mb-6">
               Profit is 48% More than last Month
             </p>
@@ -904,12 +920,12 @@ function DashboardContent({ merchantData, merchantId }) {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-gray-400"></div>
               <span>Last Month</span>
-              <div className="text-gray-300">$4,087</div>
+              <div className="text-gray-300">RM4,087</div>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-gray-400"></div>
               <span>This Month</span>
-              <div className="text-gray-300">$5,506</div>
+              <div className="text-gray-300">RM5,506</div>
             </div>
           </div>
         </div>
