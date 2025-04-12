@@ -266,23 +266,118 @@ def average_delivery_time_view(request, merchant_id):
     data = get_merchant_data(merchant_id)
     return Response({'average_delivery_time': get_avg_delivery_time(data)})
 
+@api_view(['GET'])
+def merchant_recommendations(request, merchant_id):
+    try:
+        data = get_merchant_data(merchant_id)
+        if data.empty:
+            return Response({'error': 'No data found for this merchant'}, status=404)
 
+        # Metrics
+        top_items = get_top_selling_items(data, top_n=5)
+        least_items = get_least_selling_items(data, bottom_n=5)
+        basket_size = get_average_basket_size(data)
+        avg_order_value = get_average_order_value(data)
+        avg_delivery_time = get_avg_delivery_time(data)
+        popular_hours = get_popular_order_hours(data).head(5)
+        popular_days = get_popular_order_days(data).head(5)
 
+        # Merchant profile
+        merchant_info = merchants_df[merchants_df['merchant_id'] == merchant_id].iloc[0].to_dict()
+        merchant_name = merchant_info.get('merchant_name', 'Unknown')
+        cuisine = merchant_info.get('cuisine_type', 'Unknown')
+        total_orders = len(data['order_id'].unique())
 
+        # Format for Gemini
+        summary = (
+            f"Merchant Name: {merchant_name}\n"
+            f"Cuisine: {cuisine}\n"
+            f"Total Orders: {total_orders}\n"
+            f"Top Selling Items: {[row['item_name'] for _, row in top_items.iterrows()]}\n"
+            f"Underperforming Items: {[row['item_name'] for _, row in least_items.iterrows()]}\n"
+            f"Average Basket Size: {basket_size} items\n"
+            f"Average Order Value: RM{avg_order_value}\n"
+            f"Average Delivery Time: {avg_delivery_time} minutes\n"
+            f"Peak Order Hours: {[f'{k}:00' for k in popular_hours.index.tolist()]}\n"
+            f"Peak Days: {[day for day in popular_days.index.tolist()]}\n"
+        )
 
+        # Improved Prompt for More Actionable Insights
+        prompt = f"""
+        You are a Grab Business Consultant AI that gives personalized, real-world business recommendations to food & beverage merchant-partners.
+        
+        Based on the performance data below, generate 3 to 5 actionable recommendations in this format:
 
+        [
+            {{
+                "title": "Short recommendation title",
+                "rationale": "Explain why this is important using the data insights.",
+                "action_steps": [
+                    "Step 1",
+                    "Step 2",
+                    ...
+                ],
+                "expected_impact": "What business outcome this could improve"
+            }},
+            ...
+        ]
+
+        Be practical and business-relevant — examples include bundling popular items, reducing delivery times, off-peak promotions, optimizing staffing, or retiring underperforming items.
+
+        --- MERCHANT PERFORMANCE DATA ---
+        {summary}
+        """
+
+        # Gemini call
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+
+        try:
+            recommendations = json.loads(response.text)
+        except:
+            recommendations = response.text
+
+        return Response({
+            'merchant_id': merchant_id,
+            'merchant_name': merchant_name,
+            'metrics': {
+                'average_basket_size': basket_size,
+                'average_order_value': avg_order_value,
+                'average_delivery_time': avg_delivery_time,
+                'top_items': top_items.to_dict('records'),
+                'underperforming_items': least_items.to_dict('records'),
+                'peak_hours': popular_hours.to_dict(),
+                'peak_days': popular_days.to_dict()
+            },
+            'recommendations': recommendations
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
 
 
 # Cuisine keyword mapping
 cuisine_keywords = {
-    'Burgers': ['burger', 'patty', 'bun', 'cheeseburger', 'angus', 'beef', 'grill'],
-    'American': ['wings', 'fries', 'bbq', 'sandwich', 'hot dog', 'bacon', 'cheddar'],
-    'Asian': ['wok', 'stir-fry', 'dim sum', 'pho', 'sushi', 'noodle', 'dumpling'],
-    'Indian': ['curry', 'naan', 'tikka', 'masala', 'biryani', 'samosas', 'lentil'],
-    'Mexican': ['taco', 'burrito', 'quesadilla', 'guacamole', 'salsa', 'nachos'],
-    'Italian': ['pizza', 'pasta', 'risotto', 'bruschetta', 'parmesan', 'mozzarella'],
-    'Seafood': ['fish', 'shrimp', 'salmon', 'tuna', 'crab', 'lobster', 'oyster'],
-    # Add more cuisines as needed
+    'Burgers': {'burger', 'patty', 'cheeseburger', 'angus', 'beef', 'grill', 'whopper', 'slider', 'bun', 'double'},
+    'American': {'wings', 'fries', 'bbq', 'sandwich', 'hot dog', 'bacon', 'cheddar', 'mac n cheese', 'corn dog', 'chili', 'biscuits', 'gravy'},
+    'Mexican': {'taco', 'burrito', 'quesadilla', 'guacamole', 'guac', 'salsa', 'nachos', 'enchilada', 'fajita', 'tortilla', 'pozole', 'tamale'},
+    'Indian': {'curry', 'naan', 'tikka', 'masala', 'biryani', 'samosa', 'lentil', 'paneer', 'dal', 'vindaloo', 'dosa', 'chutney', 'roti'},
+    'Italian': {'pizza', 'pasta', 'risotto', 'bruschetta', 'parmesan', 'mozzarella', 'lasagna', 'spaghetti', 'fettuccine', 'gnocchi', 'carbonara', 'marinara', 'calzone'},
+    'Seafood': {'fish', 'shrimp', 'salmon', 'tuna', 'crab', 'lobster', 'oyster', 'clam', 'mussels', 'scallop', 'lobster roll', 'calamari'},
+    'Chinese': {'wok', 'stir-fry', 'dim sum', 'pho', 'sushi', 'noodle', 'dumpling', 'ramen', 'spring roll', 'egg roll', 'fried rice', 'chow mein', 'lo mein', 'hot pot', 'bao', 'char siu', 'mapo tofu'},
+    'Japanese': {'sushi', 'ramen', 'tempura', 'teriyaki', 'miso', 'udon', 'sashimi', 'sake'},
+    'Korean': {'kimchi', 'bulgogi', 'bibimbap', 'galbi', 'gochujang'},
+    'Thai': {'pad thai', 'tom yum', 'green curry', 'red curry', 'lemongrass', 'coconut milk', 'massaman'},
+    'Vietnamese': {'pho', 'banh mi', 'spring roll', 'vermicelli', 'nuoc cham'},
+    'Greek': {'gyro', 'feta', 'tzatziki', 'pita', 'dolma', 'spanakopita', 'moussaka', 'souvlaki', 'baklava', 'olives'},
+    'Middle Eastern': {'hummus', 'shawarma', 'falafel', 'tabouli', 'tahini', 'pita', 'kebab', 'kebap'},
+    'French': {'croissant', 'baguette', 'crepe', 'foie gras', 'escargot', 'ratatouille', 'brie', 'camembert', 'quiche', 'coq au vin', 'bouillabaisse', 'macaron', 'eclair', 'souffle'},
+    'German': {'sauerkraut', 'bratwurst', 'pretzel', 'schnitzel', 'spaetzle', 'strudel', 'currywurst'},
+    'Spanish': {'paella', 'tapas', 'churros', 'jamon', 'gazpacho', 'tortilla espanola', 'patatas bravas'},
+    'Caribbean': {'jerk', 'plantain', 'cassava', 'ackee', 'saltfish', 'curry goat', 'callaloo'},
+    'Moroccan': {'tagine', 'couscous', 'harissa', 'ras el hanout', 'bastilla'},
+    'Turkish': {'kebab', 'doner', 'baklava', 'dolma', 'lokum'}
 }
 
 try:
