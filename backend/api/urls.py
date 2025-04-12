@@ -15,4 +15,5 @@ urlpatterns = [
     # enhanced_keyword_recommendations
     path('merchant/<str:merchant_id>/enhanced-keyword-recommendations/', views.enhanced_keyword_recommendations_view),
     path('merchant/<str:merchant_id>/alerts/', views.merchant_alerts_v2),
+    path('merchant/<str:merchant_id>/realtime-recommendations', views.realtime_recommendations),
 ]

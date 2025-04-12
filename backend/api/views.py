@@ -98,8 +98,6 @@ def get_merchant_data(merchant_id):
     except Exception as e:
         print(f"Error getting merchant data: {e}")
         return pd.DataFrame()
-    
-
 
 def get_top_selling_items(data, top_n=5):
     return (
@@ -579,6 +577,109 @@ def merchant_alerts_v2(request, merchant_id):
             },
             "bottleneck_alerts": bottlenecks,
             "gemini_insights": gemini_insights
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+def get_today_data(data):
+    # since the data is not updated to today, we will use the last date in the dataset
+    last_date = data['order_time'].max()
+    today_data = data[data['order_time'].dt.date == last_date.date()]
+    return today_data.reset_index(drop=True)
+
+@api_view(['GET'])
+def realtime_recommendations(request, merchant_id):
+    try:
+        full_data = get_merchant_data(merchant_id)
+        if full_data.empty:
+            return Response({'error': 'No data found for this merchant'}, status=404)
+
+        data = get_today_data(full_data)
+        if data.empty:
+            return Response({'error': 'No data available for the latest date'}, status=404)
+
+        # Metrics
+        top_items = get_top_selling_items(data, top_n=5)
+        least_items = get_least_selling_items(data, bottom_n=5)
+        basket_size = get_average_basket_size(data)
+        avg_order_value = get_average_order_value(data)
+        avg_delivery_time = get_avg_delivery_time(data)
+        popular_hours = get_popular_order_hours(data).head(5)
+        popular_days = get_popular_order_days(data).head(5)
+
+        # Merchant profile
+        merchant_info = merchants_df[merchants_df['merchant_id'] == merchant_id].iloc[0].to_dict()
+        merchant_name = merchant_info.get('merchant_name', 'Unknown')
+        cuisine = merchant_info.get('cuisine_type', 'Unknown')
+        total_orders = len(data['order_id'].unique())
+        last_date_str = data['order_time'].max().strftime('%Y-%m-%d')
+
+        # Format for Gemini
+        summary = (
+            f"Merchant Name: {merchant_name}\n"
+            f"Cuisine: {cuisine}\n"
+            f"Date: {last_date_str}\n"
+            f"Total Orders: {total_orders}\n"
+            f"Top Selling Items: {[row['item_name'] for _, row in top_items.iterrows()]}\n"
+            f"Underperforming Items: {[row['item_name'] for _, row in least_items.iterrows()]}\n"
+            f"Average Basket Size: {basket_size} items\n"
+            f"Average Order Value: RM{avg_order_value}\n"
+            f"Average Delivery Time: {avg_delivery_time} minutes\n"
+            f"Peak Order Hours: {[f'{k}:00' for k in popular_hours.index.tolist()]}\n"
+            f"Peak Days: {[day for day in popular_days.index.tolist()]}\n"
+        )
+
+        # Improved Prompt for Daily Personalized Insights
+        prompt = f"""
+        You are a Grab Business Consultant AI that gives personalized, real-world business recommendations to food & beverage merchant-partners.
+
+        Based on the merchant's performance data **specifically for {last_date_str}**, generate 3 to 5 actionable and personalized recommendations in this format:
+
+        [
+            {{
+                "title": "Short recommendation title",
+                "rationale": "Explain why this is important using the daily data insights.",
+                "action_steps": [
+                    "Step 1",
+                    "Step 2",
+                    ...
+                ],
+                "expected_impact": "What business outcome this could improve"
+            }},
+            ...
+        ]
+
+        Be practical and business-relevant — examples include bundling popular items, reducing delivery times, off-peak promotions, optimizing staffing, or retiring underperforming items.
+
+        --- MERCHANT PERFORMANCE DATA FOR {last_date_str} ---
+        {summary}
+        """
+
+        # Gemini call
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+
+        try:
+            recommendations = json.loads(response.text)
+        except:
+            recommendations = response.text
+
+        return Response({
+            'merchant_id': merchant_id,
+            'merchant_name': merchant_name,
+            'date': last_date_str,
+            'metrics': {
+                'average_basket_size': basket_size,
+                'average_order_value': avg_order_value,
+                'average_delivery_time': avg_delivery_time,
+                'top_items': top_items.to_dict('records'),
+                'underperforming_items': least_items.to_dict('records'),
+                'peak_hours': popular_hours.to_dict(),
+                'peak_days': popular_days.to_dict()
+            },
+            'recommendations': recommendations
         })
 
     except Exception as e:
