@@ -17,6 +17,7 @@ function GrabAssistant({ merchantData, merchantId }) {
   const [suggestions, setSuggestions] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeContext, setActiveContext] = useState(null);
   const messagesEndRef = useRef(null);
 
   // 1. React Router location for reading data from navigate(..., { state: {...} })
@@ -44,8 +45,9 @@ function GrabAssistant({ merchantData, merchantId }) {
     setMessages(initialMessages);
   }, [location.state?.showAnalytics]);
 
-  // 2. Check if we arrived from a chart click => auto-inject a bot message about the product
+  // 2. Check if we arrived from a chart click or keyword recommendation => auto-inject a bot message
   useEffect(() => {
+    // Handle chart click navigation
     if (location.state?.fromChart) {
       const clickedItem = location.state.item;
       const chartType = location.state.chartType;
@@ -55,7 +57,7 @@ function GrabAssistant({ merchantData, merchantId }) {
         // Calculate ranking for internal use
         const sortedItems = [...allItems].sort((a, b) => b.num_sales - a.num_sales);
         const itemRank = sortedItems.findIndex(item => item.item_name === clickedItem.item_name) + 1;
-        
+
         // Store the ranking info in state for use in chat responses
         window.itemAnalytics = {
           rank: itemRank,
@@ -80,11 +82,54 @@ function GrabAssistant({ merchantData, merchantId }) {
           'When do people buy this most?',
           'What are my top selling items?',
           'Which items need attention?'
-          
         ]);
       }
     }
-  }, [location.state]);
+
+    // Handle keyword recommendation click navigation
+    if (location.state?.fromKeyword) {
+      const product = location.state.product;
+      const keyword = location.state.keyword;
+      const message = location.state.message;
+
+      if (product && keyword) {
+        // Store the keyword context for future messages
+        setActiveContext({
+          type: 'keyword',
+          product: product,
+          keyword: keyword.keyword,
+          score: keyword.score,
+          checkout: keyword.checkout,
+          order: keyword.order
+        });
+
+        // Add user message with the query
+        const userMessage = {
+          id: Date.now(),
+          text: message,
+          sender: 'user'
+        };
+
+        // Add bot response about the keyword
+        const botMessage = {
+          id: Date.now() + 1,
+          text: `Analyzing keyword "${keyword.keyword}" for your product "${product}":\n\n• Relevance score: ${Math.round(keyword.score * 100)}%\n• ${keyword.checkout.toLocaleString()} checkouts\n• ${keyword.order.toLocaleString()} orders\n\nWould you like to know more about how to optimize your product for this keyword?`,
+          sender: 'bot'
+        };
+
+        setMessages(prev => [...prev, userMessage, botMessage]);
+
+        // Set keyword-specific suggestions
+        setSuggestions([
+          `How can I optimize my product for "${keyword.keyword}"?`,
+          `What makes "${keyword.keyword}" popular?`,
+          `Show me similar keywords to "${keyword.keyword}"`,
+          `How can I improve my product listing for "${keyword.keyword}"?`,
+          `Compare "${keyword.keyword}" with my other keywords`
+        ]);
+      }
+    }
+  }, [location.state, merchantData.topSellingItems]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -127,20 +172,51 @@ function GrabAssistant({ merchantData, merchantId }) {
     }
   };
 
-  // Example Quick Actions
+  // Enhanced Business Insights with Keyword Analysis
   const handleBusinessInsight = async () => {
     setIsLoading(true);
     try {
-      const response = await api.post('ask-gemini/', {
-        query: `You are helping a shop owner understand their sales. Use simple words and short sentences. Do not use any special formatting like asterisks (*) or markdown.\n\nTell them:\n1. Which items sell well and which don't\n2. Quick ways to make more sales\n3. Simple ideas for discounts or promotions\n4. What items to stock up on\n\nKeep it simple and practical. Use normal text with numbers or bullet points. Data: ${JSON.stringify(location.state?.topSellingItems || merchantData.topSellingItems)}`
-      });
+      // Fetch keyword recommendations
+      const keywordResponse = await api.get(`merchant/2e8a5/enhanced-keyword-recommendations/`);
+      const recommendations = keywordResponse.data.recommendations;
+
+      // Prepare comprehensive analysis data
+      const analysisData = {
+        query: "Analyze my business performance and provide insights",
+        merchant_id: '2e8a5',
+        context: {
+          sales_data: {
+            top_items: merchantData.topSellingItems,
+            least_items: merchantData.leastSellingItems,
+            popular_hours: merchantData.popularHours,
+            popular_days: merchantData.popularDays
+          },
+          keyword_insights: {
+            recommendations: recommendations,
+            trends: Object.entries(recommendations).map(([product, keywords]) => ({
+              product,
+              top_keywords: keywords.slice(0, 3),
+              avg_score: keywords.reduce((sum, k) => sum + k.score, 0) / keywords.length,
+              potential_reach: keywords.reduce((sum, k) => sum + k.checkout, 0)
+            }))
+          },
+          metrics: {
+            avg_order_value: merchantData.averageOrderValue,
+            total_products: merchantData.activeProducts,
+            delivery_time: merchantData.averageDeliveryTime
+          }
+        }
+      };
+
+      // Get enhanced insights from Gemini
+      const response = await api.post('ask-gemini/', analysisData);
 
       let botResponse = response.data.response;
-      
+
       // Format numbers in the response for better readability
       // Remove any markdown formatting
       botResponse = botResponse.replace(/[*_]/g, '');
-      
+
       // Format numbers
       botResponse = botResponse.replace(/\b\d+\b/g, (match) => {
         const num = parseInt(match);
@@ -160,7 +236,7 @@ function GrabAssistant({ merchantData, merchantId }) {
         'What items are not selling well?',
         'How can I make more profit?'
       ].sort(() => 0.5 - Math.random()).slice(0, 3);
-      
+
       setSuggestions(newSuggestions);
 
       const botMessage = {

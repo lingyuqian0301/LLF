@@ -33,12 +33,13 @@ import {
 import "./App.css";
 
 // --- Import your custom components ---
-// Example: 
+// Example:
 import NotificationManager from "./components/NotificationManager";
 import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 // The below import is your new chat page
 import GrabAssistant from "./pages/GrabAssistant";
+import ProductPage from "./pages/ProductPage";
 
 // Register ChartJS components
 ChartJS.register(
@@ -145,6 +146,8 @@ function App() {
     setActiveTab(tab);
     if (tab === "message") {
       navigate("/grab-assistant");
+    } else if (tab === "product") {
+      navigate("/product");
     }
   };
 
@@ -304,6 +307,7 @@ function App() {
         <Routes>
           <Route path="/" element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />} />
           <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />} />
+          <Route path="/product" element={<ProductPage merchantId={merchantId} />} />
         </Routes>
       </div>
     </div>
@@ -463,7 +467,7 @@ function DashboardContent({ merchantData, merchantId }) {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Analytics Overview</h2>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={() => navigate('/grab-assistant', { state: { showAnalytics: true } })}
               className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
             >
@@ -482,9 +486,9 @@ function DashboardContent({ merchantData, merchantId }) {
               <h3 className="text-lg font-semibold">Popular Order Hours</h3>
             </div>
             <div className="h-64">
-              <Line 
-                data={popularHoursData} 
-                options={{ 
+              <Line
+                data={popularHoursData}
+                options={{
                   maintainAspectRatio: false,
                   scales: {
                     y: {
@@ -512,7 +516,7 @@ function DashboardContent({ merchantData, merchantId }) {
                       }
                     }
                   }
-                }} 
+                }}
               />
             </div>
           </div>
@@ -524,7 +528,7 @@ function DashboardContent({ merchantData, merchantId }) {
               <h3 className="text-lg font-semibold">Popular Order Days</h3>
             </div>
             <div className="h-64">
-              <Line data={popularDaysData} options={{ 
+              <Line data={popularDaysData} options={{
                 maintainAspectRatio: false,
                 scales: {
                   y: {
@@ -668,7 +672,7 @@ function DashboardContent({ merchantData, merchantId }) {
         </div>
 
         {/* Bottom Row */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 mt-6">
           {/* Earnings (example) */}
           <div className="bg-gray-900 rounded-lg p-5">
             <h2 className="text-xl font-semibold mb-1">Earnings</h2>
@@ -801,9 +805,9 @@ function DashboardContent({ merchantData, merchantId }) {
           </div>
         </div>
 
-       
 
-       
+
+
 
         {/* Example “Level” section */}
         <div className="bg-gray-900 rounded-lg p-5">
