@@ -301,7 +301,7 @@ function App() {
 
         <Routes>
           <Route path="/" element={<DashboardContent merchantData={merchantData} />} />
-          <Route path="/grab-assistant" element={<GrabAssistant />} />
+          <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} />} />
         </Routes>
       </div>
     </div>
