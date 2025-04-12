@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-// Removed axios import
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Bar } from 'react-chartjs-2';
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +11,7 @@ import {
   Title,
   Tooltip,
   Legend
-} from 'chart.js';
+} from "chart.js";
 import {
   BarChart,
   Home,
@@ -30,14 +29,14 @@ import {
   Bell,
 } from "lucide-react";
 import "./App.css";
+
+// --- Import your custom components ---
+// Example: 
 import NotificationManager from "./components/NotificationManager";
 import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
+// The below import is your new chat page
 import GrabAssistant from "./pages/GrabAssistant";
-
-// --- NO axios configuration needed now ---
-// axios.defaults.baseURL = 'http://127.0.0.1:8000';
-// axios.defaults.withCredentials = true; // Not needed for fetch; you can pass credentials explicitly in fetch
 
 // Register ChartJS components
 ChartJS.register(
@@ -51,12 +50,13 @@ ChartJS.register(
   Legend
 );
 
-// API functions (using fetch now)
+// An example fetch function using the native Fetch API
 const fetchMerchantData = async (merchantId, endpoint) => {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/merchant/${merchantId}/${endpoint}/`, {
-      credentials: 'include', // If you still need cookies/session
-    });
+    const response = await fetch(
+      `http://127.0.0.1:8000/api/merchant/${merchantId}/${endpoint}/`,
+      { credentials: "include" }
+    );
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
@@ -69,7 +69,6 @@ const fetchMerchantData = async (merchantId, endpoint) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  // eslint-disable-next-line no-unused-vars
   const [notifications, setNotifications] = useState([]);
   const [merchantData, setMerchantData] = useState({
     topSellingItems: [],
@@ -78,10 +77,11 @@ function App() {
     popularDays: [],
     averageBasketSize: null,
     averageOrderValue: null,
-    averageDeliveryTime: null
+    averageDeliveryTime: null,
   });
+
   const navigate = useNavigate();
-  const merchantId = "b7a3e"; // Replace with actual merchant ID
+  const merchantId = "2e8a5"; // Example merchant ID
 
   // Fetch all merchant data at once
   useEffect(() => {
@@ -93,15 +93,15 @@ function App() {
         days,
         basketSize,
         orderValue,
-        deliveryTime
+        deliveryTime,
       ] = await Promise.all([
-        fetchMerchantData(merchantId, 'top-selling-items'),
-        fetchMerchantData(merchantId, 'least-selling-items'),
-        fetchMerchantData(merchantId, 'popular-order-hours'),
-        fetchMerchantData(merchantId, 'popular-order-days'),
-        fetchMerchantData(merchantId, 'average-basket-size'),
-        fetchMerchantData(merchantId, 'average-order-value'),
-        fetchMerchantData(merchantId, 'average-delivery-time')
+        fetchMerchantData(merchantId, "top-selling-items"),
+        fetchMerchantData(merchantId, "least-selling-items"),
+        fetchMerchantData(merchantId, "popular-order-hours"),
+        fetchMerchantData(merchantId, "popular-order-days"),
+        fetchMerchantData(merchantId, "average-basket-size"),
+        fetchMerchantData(merchantId, "average-order-value"),
+        fetchMerchantData(merchantId, "average-delivery-time"),
       ]);
 
       setMerchantData({
@@ -111,7 +111,7 @@ function App() {
         popularDays: days || [],
         averageBasketSize: basketSize,
         averageOrderValue: orderValue,
-        averageDeliveryTime: deliveryTime
+        averageDeliveryTime: deliveryTime,
       });
     };
 
@@ -122,16 +122,17 @@ function App() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/merchant/${merchantId}/notifications/`, {
-          credentials: 'include',
-        });
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/merchant/${merchantId}/notifications/`,
+          { credentials: "include" }
+        );
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
         setNotifications(data || []);
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.error("Error fetching notifications:", error);
       }
     };
 
@@ -162,7 +163,9 @@ function App() {
         </div>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "dashboard" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "dashboard" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => {
             handleTabClick("dashboard");
             navigate("/");
@@ -173,7 +176,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "profile" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "profile" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("profile")}
         >
           <User size={18} />
@@ -181,7 +186,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "leaderboard" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "leaderboard" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("leaderboard")}
         >
           <Award size={18} />
@@ -189,7 +196,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "order" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "order" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("order")}
         >
           <ShoppingCart size={18} />
@@ -197,7 +206,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "product" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "product" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("product")}
         >
           <Package size={18} />
@@ -205,7 +216,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "salesReport" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "salesReport" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("salesReport")}
         >
           <BarChart2 size={18} />
@@ -213,7 +226,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "message" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "message" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("message")}
         >
           <MessageSquare size={18} />
@@ -221,7 +236,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "settings" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "settings" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("settings")}
         >
           <Settings size={18} />
@@ -229,7 +246,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "favourite" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "favourite" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("favourite")}
         >
           <Star size={18} />
@@ -237,7 +256,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "history" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "history" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("history")}
         >
           <History size={18} />
@@ -245,7 +266,9 @@ function App() {
         </button>
 
         <button
-          className={`flex items-center gap-3 p-2 rounded-md ${activeTab === "signout" ? "bg-gray-800" : "hover:bg-gray-900"}`}
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "signout" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
           onClick={() => handleTabClick("signout")}
         >
           <LogOut size={18} />
@@ -258,7 +281,10 @@ function App() {
         {/* Search Bar */}
         <div className="flex justify-between items-center mb-6">
           <div className="relative w-1/2">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Search here..."
@@ -282,29 +308,107 @@ function App() {
   );
 }
 
-// Dashboard content component
+// -----------------------------------------------
+// DashboardContent Component
+// -----------------------------------------------
 function DashboardContent({ merchantData }) {
-  // Format data for charts
+  const navigate = useNavigate();
+
+  // Set up data for your existing “Popular Hours” chart
   const popularHoursData = {
-    labels: Array.isArray(merchantData.popularHours) ? merchantData.popularHours.map(h => h.hour) : [],
-    datasets: [{
-      label: 'Orders per Hour',
-      data: Array.isArray(merchantData.popularHours) ? merchantData.popularHours.map(h => h.count) : [],
-      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-      borderColor: 'rgba(75, 192, 192, 1)',
-      borderWidth: 1
-    }]
+    labels: Array.isArray(merchantData.popularHours)
+      ? merchantData.popularHours.map((h) => h.hour)
+      : [],
+    datasets: [
+      {
+        label: "Orders per Hour",
+        data: Array.isArray(merchantData.popularHours)
+          ? merchantData.popularHours.map((h) => h.count)
+          : [],
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
+        borderColor: "rgba(75, 192, 192, 1)",
+        borderWidth: 1,
+      },
+    ],
   };
 
+  // Set up data for your existing “Popular Days” chart
   const popularDaysData = {
-    labels: Array.isArray(merchantData.popularDays) ? merchantData.popularDays.map(d => d.day) : [],
-    datasets: [{
-      label: 'Orders per Day',
-      data: Array.isArray(merchantData.popularDays) ? merchantData.popularDays.map(d => d.count) : [],
-      backgroundColor: 'rgba(153, 102, 255, 0.2)',
-      borderColor: 'rgba(153, 102, 255, 1)',
-      borderWidth: 1
-    }]
+    labels: Array.isArray(merchantData.popularDays)
+      ? merchantData.popularDays.map((d) => d.day)
+      : [],
+    datasets: [
+      {
+        label: "Orders per Day",
+        data: Array.isArray(merchantData.popularDays)
+          ? merchantData.popularDays.map((d) => d.count)
+          : [],
+        backgroundColor: "rgba(153, 102, 255, 0.2)",
+        borderColor: "rgba(153, 102, 255, 1)",
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  // -----------------------------------------------
+  // CHARTS FOR TOP & LEAST SELLING ITEMS (CLICKABLE)
+  // -----------------------------------------------
+  const topSellingItemsChartData = {
+    labels: merchantData.topSellingItems.map((item) => item.item_name),
+    datasets: [
+      {
+        label: "Top Selling Items",
+        data: merchantData.topSellingItems.map((item) => item.num_sales),
+        backgroundColor: "rgba(54, 162, 235, 0.2)",
+        borderColor: "rgba(54, 162, 235, 1)",
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const leastSellingItemsChartData = {
+    labels: merchantData.leastSellingItems.map((item) => item.item_name),
+    datasets: [
+      {
+        label: "Least Selling Items",
+        data: merchantData.leastSellingItems.map((item) => item.num_sales),
+        backgroundColor: "rgba(255, 99, 132, 0.2)",
+        borderColor: "rgba(255, 99, 132, 1)",
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  // When user clicks on a bar in the “Top Selling Items” chart
+  const handleTopSellingBarClick = (evt, elements) => {
+    if (!elements.length) return;
+    const { index } = elements[0];
+    const clickedItem = merchantData.topSellingItems[index];
+
+    // Navigate to chat with item data
+    navigate("/grab-assistant", {
+      state: {
+        fromChart: true,
+        chartType: "top-selling",
+        item: clickedItem,
+      },
+    });
+  };
+
+  // When user clicks on a bar in the “Least Selling Items” chart
+  const handleLeastSellingBarClick = (evt, elements) => {
+    if (!elements.length) return;
+    const { index } = elements[0];
+    const clickedItem = merchantData.leastSellingItems[index];
+
+    // Navigate to chat with item data
+    navigate("/grab-assistant", {
+      state: {
+        fromChart: true,
+        chartType: "least-selling",
+        item: clickedItem,
+      },
+    });
   };
 
   return (
@@ -313,21 +417,33 @@ function DashboardContent({ merchantData }) {
       <div className="col-span-3 grid grid-cols-3 gap-6 mb-6">
         <SalesCard
           icon={<ShoppingCart size={24} />}
-          value={typeof merchantData.averageBasketSize === 'number' ? merchantData.averageBasketSize.toFixed(2) : '0'}
+          value={
+            typeof merchantData.averageBasketSize === "number"
+              ? merchantData.averageBasketSize.toFixed(2)
+              : "0"
+          }
           label="Average Basket Size"
           change="+5%"
           changeColor="text-green-500"
         />
         <SalesCard
           icon={<Package size={24} />}
-          value={`$${typeof merchantData.averageOrderValue === 'number' ? merchantData.averageOrderValue.toFixed(2) : '0'}`}
+          value={
+            typeof merchantData.averageOrderValue === "number"
+              ? `$${merchantData.averageOrderValue.toFixed(2)}`
+              : "$0"
+          }
           label="Average Order Value"
           change="+12%"
           changeColor="text-green-500"
         />
         <SalesCard
           icon={<History size={24} />}
-          value={`${typeof merchantData.averageDeliveryTime === 'number' ? merchantData.averageDeliveryTime.toFixed(0) : '0'} min`}
+          value={
+            typeof merchantData.averageDeliveryTime === "number"
+              ? merchantData.averageDeliveryTime.toFixed(0) + " min"
+              : "0 min"
+          }
           label="Average Delivery Time"
           change="-2%"
           changeColor="text-red-500"
@@ -352,7 +468,7 @@ function DashboardContent({ merchantData }) {
           </div>
         </div>
 
-        {/* Today's Sales */}
+        {/* Today's Sales (example) */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-1">Today's Sales</h2>
           <p className="text-gray-400 text-sm mb-4">Sales Summary</p>
@@ -389,7 +505,7 @@ function DashboardContent({ merchantData }) {
           </div>
         </div>
 
-        {/* Top Products */}
+        {/* A static "Top Products" table example */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Top Products</h2>
 
@@ -403,23 +519,49 @@ function DashboardContent({ merchantData }) {
               </tr>
             </thead>
             <tbody>
-              <ProductRow id="01" name="Home Decore Range" popularity={75} sales={46} color="bg-yellow-500" />
-              <ProductRow id="02" name="Disney Princess Dress" popularity={55} sales={17} color="bg-teal-400" />
-              <ProductRow id="03" name="Bathroom Essentials" popularity={45} sales={19} color="bg-blue-400" />
-              <ProductRow id="04" name="Apple Smartwatch" popularity={30} sales={29} color="bg-purple-400" />
+              <ProductRow
+                id="01"
+                name="Home Decor Range"
+                popularity={75}
+                sales={46}
+                color="bg-yellow-500"
+              />
+              <ProductRow
+                id="02"
+                name="Disney Princess Dress"
+                popularity={55}
+                sales={17}
+                color="bg-teal-400"
+              />
+              <ProductRow
+                id="03"
+                name="Bathroom Essentials"
+                popularity={45}
+                sales={19}
+                color="bg-blue-400"
+              />
+              <ProductRow
+                id="04"
+                name="Apple Smartwatch"
+                popularity={30}
+                sales={29}
+                color="bg-purple-400"
+              />
             </tbody>
           </table>
         </div>
 
         {/* Bottom Row */}
         <div className="grid grid-cols-2 gap-6">
-          {/* Earnings */}
+          {/* Earnings (example) */}
           <div className="bg-gray-900 rounded-lg p-5">
             <h2 className="text-xl font-semibold mb-1">Earnings</h2>
             <p className="text-gray-400 text-sm mb-4">Total Expense</p>
 
             <div className="text-3xl font-bold text-teal-400 mb-2">$6078.76</div>
-            <p className="text-gray-400 text-sm mb-6">Profit is 48% More than last Month</p>
+            <p className="text-gray-400 text-sm mb-6">
+              Profit is 48% More than last Month
+            </p>
 
             <div className="relative pt-10">
               <div className="w-40 h-40 mx-auto relative">
@@ -427,7 +569,14 @@ function DashboardContent({ merchantData }) {
                   <span className="text-3xl font-bold">80%</span>
                 </div>
                 <svg className="w-full h-full" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#1f2937" strokeWidth="10" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="#1f2937"
+                    strokeWidth="10"
+                  />
                   <circle
                     cx="50"
                     cy="50"
@@ -444,7 +593,7 @@ function DashboardContent({ merchantData }) {
             </div>
           </div>
 
-          {/* Visitor Insights */}
+          {/* Visitor Insights (example) */}
           <div className="bg-gray-900 rounded-lg p-5">
             <h2 className="text-xl font-semibold mb-6">Visitor Insights</h2>
 
@@ -464,7 +613,13 @@ function DashboardContent({ merchantData }) {
                     stroke="none"
                   />
                   <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <linearGradient
+                      id="gradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="0%"
+                      y2="100%"
+                    >
                       <stop offset="0%" stopColor="#5eead4" stopOpacity="0.5" />
                       <stop offset="100%" stopColor="#5eead4" stopOpacity="0" />
                     </linearGradient>
@@ -500,44 +655,79 @@ function DashboardContent({ merchantData }) {
         </div>
       </div>
 
-      {/* Products Section */}
+      {/* Products Section (Right Column) */}
       <div className="space-y-6">
-        {/* Top Selling Items */}
+        {/* Top Selling Items (Chart) */}
         <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Top Selling Items</h3>
-          <div className="space-y-4">
-            {Array.isArray(merchantData.topSellingItems) ? merchantData.topSellingItems.map((item, index) => (
-              <ProductRow
-                key={item.item_id}
-                item_id={item.item_id}
-                item_name={item.item_name}
-                num_sales={item.num_sales}
-                color={`bg-green-${500 - (index * 100)}`}
-              />
-            )) : <p className="text-gray-400">No data available</p>}
+          <h3 className="text-lg font-semibold mb-4">Top Selling Items (Chart)</h3>
+          <div className="h-64">
+            <Bar
+              data={topSellingItemsChartData}
+              options={{
+                maintainAspectRatio: false,
+                onClick: handleTopSellingBarClick,
+              }}
+            />
           </div>
         </div>
 
-        {/* Least Selling Items */}
+        {/* Least Selling Items (Chart) */}
         <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Least Selling Items</h3>
-          <div className="space-y-4">
-            {Array.isArray(merchantData.leastSellingItems) ? merchantData.leastSellingItems.map((item, index) => (
-              <ProductRow
-                key={item.item_id}
-                item_id={item.item_id}
-                item_name={item.item_name}
-                num_sales={item.num_sales}
-                color={`bg-red-${500 - (index * 100)}`}
-              />
-            )) : <p className="text-gray-400">No data available</p>}
+          <h3 className="text-lg font-semibold mb-4">Least Selling Items (Chart)</h3>
+          <div className="h-64">
+            <Bar
+              data={leastSellingItemsChartData}
+              options={{
+                maintainAspectRatio: false,
+                onClick: handleLeastSellingBarClick,
+              }}
+            />
           </div>
         </div>
 
-        {/* Level */}
+        {/* Top Selling Items (Table) */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Top Selling Items (Table)</h3>
+          <div className="space-y-4">
+            {Array.isArray(merchantData.topSellingItems) ? (
+              merchantData.topSellingItems.map((item, index) => (
+                <ProductRow
+                  key={item.item_id}
+                  item_id={item.item_id}
+                  item_name={item.item_name}
+                  num_sales={item.num_sales}
+                  color={`bg-green-${500 - index * 100}`}
+                />
+              ))
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Least Selling Items (Table) */}
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Least Selling Items (Table)</h3>
+          <div className="space-y-4">
+            {Array.isArray(merchantData.leastSellingItems) ? (
+              merchantData.leastSellingItems.map((item, index) => (
+                <ProductRow
+                  key={item.item_id}
+                  item_id={item.item_id}
+                  item_name={item.item_name}
+                  num_sales={item.num_sales}
+                  color={`bg-red-${500 - index * 100}`}
+                />
+              ))
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Example “Level” section */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Level</h2>
-
           <div className="h-48 flex items-end gap-3 mb-4">
             <div className="h-[60%] w-full bg-teal-200 rounded-t-md"></div>
             <div className="h-[80%] w-full bg-teal-200 rounded-t-md"></div>
@@ -546,7 +736,6 @@ function DashboardContent({ merchantData }) {
             <div className="h-[40%] w-full bg-teal-200 rounded-t-md"></div>
             <div className="h-[70%] w-full bg-teal-200 rounded-t-md"></div>
           </div>
-
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-teal-200"></div>
@@ -556,10 +745,9 @@ function DashboardContent({ merchantData }) {
           </div>
         </div>
 
-        {/* Customer Fulfilment */}
+        {/* Example “Customer Fulfilment” section */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Customer Fulfilment</h2>
-
           <div className="h-48 relative mb-4">
             <div className="absolute inset-0">
               <svg viewBox="0 0 500 200" className="w-full h-full">
@@ -588,19 +776,46 @@ function DashboardContent({ merchantData }) {
                   stroke="none"
                 />
                 <defs>
-                  <linearGradient id="gradient1" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#5eead4" stopOpacity="0.5" />
-                    <stop offset="100%" stopColor="#5eead4" stopOpacity="0" />
+                  <linearGradient
+                    id="gradient1"
+                    x1="0%"
+                    y1="0%"
+                    x2="0%"
+                    y2="100%"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="#5eead4"
+                      stopOpacity="0.5"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="#5eead4"
+                      stopOpacity="0"
+                    />
                   </linearGradient>
-                  <linearGradient id="gradient2" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#d8b4fe" stopOpacity="0.5" />
-                    <stop offset="100%" stopColor="#d8b4fe" stopOpacity="0" />
+                  <linearGradient
+                    id="gradient2"
+                    x1="0%"
+                    y1="0%"
+                    x2="0%"
+                    y2="100%"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="#d8b4fe"
+                      stopOpacity="0.5"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="#d8b4fe"
+                      stopOpacity="0"
+                    />
                   </linearGradient>
                 </defs>
               </svg>
             </div>
           </div>
-
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-gray-400"></div>
@@ -619,6 +834,9 @@ function DashboardContent({ merchantData }) {
   );
 }
 
+// -----------------------------------------------
+// SalesCard
+// -----------------------------------------------
 function SalesCard({ icon, value, label, change, changeColor }) {
   return (
     <div className="bg-gray-950 rounded-lg p-4">
@@ -630,8 +848,11 @@ function SalesCard({ icon, value, label, change, changeColor }) {
   );
 }
 
+// -----------------------------------------------
+// ProductRow for table
+// -----------------------------------------------
 function ProductRow({ id, name, popularity, sales, item_id, item_name, num_sales, color }) {
-  // Handle both data structures
+  // unify the data whether using props `id, name, sales, popularity` or the `item_`
   const displayId = item_id || id;
   const displayName = item_name || name;
   const displaySales = num_sales || sales;
@@ -643,12 +864,15 @@ function ProductRow({ id, name, popularity, sales, item_id, item_name, num_sales
       <td className="py-4">{displayName}</td>
       <td className="py-4 w-1/3">
         <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
-          <div className={`h-full ${color} rounded-full`} style={{ width: `${displayPopularity}%` }}></div>
+          <div
+            className={`h-full ${color} rounded-full`}
+            style={{ width: `${displayPopularity}%` }}
+          ></div>
         </div>
       </td>
       <td className="py-4 text-right">
-        <span className={`px-2 py-1 rounded-md bg-gray-800 text-xs`}>
-          {typeof displaySales === 'number' ? displaySales.toLocaleString() : displaySales}
+        <span className="px-2 py-1 rounded-md bg-gray-800 text-xs">
+          {typeof displaySales === "number" ? displaySales.toLocaleString() : displaySales}
         </span>
       </td>
     </tr>

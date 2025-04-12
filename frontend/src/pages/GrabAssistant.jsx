@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom'; // <-- We read the passed state here
 import { Send, Bot, User, Package, ShoppingCart, BarChart2, AlertCircle, Settings, HelpCircle } from 'lucide-react';
 import axios from 'axios';
 
+// Example: create an Axios instance (optional)
 const api = axios.create({
   baseURL: 'http://localhost:8000/api/',
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   }
 });
 
@@ -15,19 +17,41 @@ function GrabAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom when messages change
+  // 1. React Router location for reading data from navigate(..., { state: {...} })
+  const location = useLocation();
+
+  // Scroll to bottom on messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initial welcome message
+  // Initialize with a "bot welcome" message
   useEffect(() => {
-    setMessages([{
-      id: Date.now(),
-      text: 'Welcome to your shop dashboard! How can I help you today?',
-      sender: 'bot'
-    }]);
+    setMessages([
+      {
+        id: Date.now(),
+        text: 'Welcome to your shop dashboard! How can I help you today?',
+        sender: 'bot'
+      }
+    ]);
   }, []);
+
+  // 2. Check if we arrived from a chart click => auto-inject a user message about the product
+  useEffect(() => {
+    if (location.state?.fromChart) {
+      const clickedItem = location.state.item;
+      const chartType = location.state.chartType;
+
+      if (clickedItem) {
+        const userMsg = {
+          id: Date.now() + 1,
+          text: `I see you clicked a ${chartType} item: "${clickedItem.item_name}" (ID: ${clickedItem.item_id}). How can I help you with this product?`,
+          sender: 'user'
+        };
+        setMessages(prev => [...prev, userMsg]);
+      }
+    }
+  }, [location.state]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -44,7 +68,7 @@ function GrabAssistant() {
     setIsLoading(true);
 
     try {
-      // Send to Django backend
+      // Example: call your backend
       const response = await api.post('ask-gemini/', {
         query: inputMessage
       });
@@ -69,6 +93,35 @@ function GrabAssistant() {
     }
   };
 
+  // Example Quick Actions
+  const [quickActions] = useState([
+    {
+      id: 'orders',
+      icon: <ShoppingCart size={20} />,
+      label: 'Order Management',
+      description: 'View and manage your orders'
+    },
+    {
+      id: 'products',
+      icon: <Package size={20} />,
+      label: 'Product Insights',
+      description: 'Get product performance analytics'
+    },
+    {
+      id: 'analytics',
+      icon: <BarChart2 size={20} />,
+      label: 'Sales Analytics',
+      description: 'View sales and performance metrics'
+    },
+    {
+      id: 'alerts',
+      icon: <AlertCircle size={20} />,
+      label: 'Alerts',
+      description: 'View important notifications'
+    }
+  ]);
+
+  // Send quick action
   const handleQuickAction = async (actionId) => {
     let query = '';
     switch (actionId) {
@@ -88,7 +141,6 @@ function GrabAssistant() {
         query = 'Help with dashboard features';
     }
 
-    // Add quick action message
     setMessages(prev => [...prev, {
       id: Date.now(),
       text: query,
@@ -114,13 +166,6 @@ function GrabAssistant() {
     }
   };
 
-  const [quickActions] = useState([
-    { id: 'orders', icon: <ShoppingCart size={20} />, label: 'Order Management', description: 'View and manage your orders' },
-    { id: 'products', icon: <Package size={20} />, label: 'Product Insights', description: 'Get product performance analytics' },
-    { id: 'analytics', icon: <BarChart2 size={20} />, label: 'Sales Analytics', description: 'View sales and performance metrics' },
-    { id: 'alerts', icon: <AlertCircle size={20} />, label: 'Alerts', description: 'View important notifications' },
-  ]);
-
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Header */}
@@ -131,7 +176,7 @@ function GrabAssistant() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-4 gap-4 p-4 border-b border-gray-800">
-        {quickActions.map(action => (
+        {quickActions.map((action) => (
           <button
             key={action.id}
             onClick={() => handleQuickAction(action.id)}
@@ -139,32 +184,40 @@ function GrabAssistant() {
           >
             <div className="text-blue-500 mb-2">{action.icon}</div>
             <span className="text-sm font-medium">{action.label}</span>
-            <span className="text-xs text-gray-400 mt-1">{action.description}</span>
+            <span className="text-xs text-gray-400 mt-1">
+              {action.description}
+            </span>
           </button>
         ))}
       </div>
 
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((msg) => (
           <div
-            key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            key={msg.id}
+            className={`flex ${
+              msg.sender === 'user' ? 'justify-end' : 'justify-start'
+            }`}
           >
             <div
               className={`flex items-start gap-2 max-w-[70%] ${
-                message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
+                msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
               }`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                message.sender === 'user' ? 'bg-blue-500' : 'bg-gray-700'
-              }`}>
-                {message.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-700'
+                }`}
+              >
+                {msg.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
               </div>
-              <div className={`p-3 rounded-lg ${
-                message.sender === 'user' ? 'bg-blue-500' : 'bg-gray-800'
-              }`}>
-                <p className="text-sm whitespace-pre-line">{message.text}</p>
+              <div
+                className={`p-3 rounded-lg ${
+                  msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-800'
+                }`}
+              >
+                <p className="text-sm whitespace-pre-line">{msg.text}</p>
               </div>
             </div>
           </div>
@@ -190,9 +243,22 @@ function GrabAssistant() {
               disabled={!inputMessage.trim() || isLoading}
             >
               {isLoading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373
+                      0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0
+                      3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
               ) : (
                 <>
