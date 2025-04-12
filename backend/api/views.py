@@ -36,9 +36,56 @@ except Exception as e:
 
 # --- Utility Functions ---
 
+
 def get_merchant_data(merchant_id):
-    result = merged_df[merged_df['merchant_id'] == merchant_id].copy()
-    return result.reset_index(drop=True)
+    try:
+        # Filter each dataframe first before merging
+        merchant_data = merchants_df[merchants_df['merchant_id'] == merchant_id].copy()
+        if merchant_data.empty:
+            return pd.DataFrame()
+            
+        merchant_items = items_df[items_df['merchant_id'] == merchant_id].copy()
+        if merchant_items.empty:
+            return pd.DataFrame()
+            
+        # Merge with transaction items
+        merchant_trans = pd.merge(
+            transaction_items_df,
+            merchant_items,
+            on='item_id',
+            how='inner'
+        )
+        
+        # Merge with transaction data
+        result = pd.merge(
+            merchant_trans,
+            transaction_data_df,
+            on='order_id',
+            how='inner'
+        )
+        
+        # Merge with merchant data
+        result = pd.merge(
+            result,
+            merchant_data,
+            on='merchant_id',
+            how='left'
+        )
+        
+        # Process datetime columns
+        datetime_cols = ['order_time', 'delivery_time', 'driver_arrival_time', 'driver_pickup_time']
+        for col in datetime_cols:
+            if col in result.columns:
+                result[col] = pd.to_datetime(result[col])
+        
+        if 'join_date' in result.columns:
+            result['join_date'] = pd.to_datetime(result['join_date'], format='%d%m%Y')
+        
+        return result.reset_index(drop=True)
+        
+    except Exception as e:
+        print(f"Error getting merchant data: {e}")
+        return pd.DataFrame()
 
 def get_top_selling_items(data, top_n=5):
     return (

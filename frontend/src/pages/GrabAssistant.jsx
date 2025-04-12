@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom'; // <-- We read the passed state here
+import { useLocation } from 'react-router-dom';
 import { Send, Bot, User, Package, ShoppingCart, BarChart2, AlertCircle, Settings, HelpCircle } from 'lucide-react';
+import MerchantAnalytics from '../components/MerchantAnalytics';
 import axios from 'axios';
 
 // Example: create an Axios instance (optional)
@@ -11,7 +12,7 @@ const api = axios.create({
   }
 });
 
-function GrabAssistant({ merchantData }) {
+function GrabAssistant({ merchantData, merchantId }) {
   const [messages, setMessages] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -26,8 +27,13 @@ function GrabAssistant({ merchantData }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize with a "bot welcome" message
+  // Initialize with a "bot welcome" message and handle analytics state
   useEffect(() => {
+    // Check if we should show analytics from navigation
+    if (location.state?.showAnalytics) {
+      setShowAnalytics(true);
+    }
+
     const initialMessages = [
       {
         id: Date.now(),
@@ -36,7 +42,7 @@ function GrabAssistant({ merchantData }) {
       }
     ];
     setMessages(initialMessages);
-  }, []);
+  }, [location.state?.showAnalytics]);
 
   // 2. Check if we arrived from a chart click => auto-inject a bot message about the product
   useEffect(() => {
@@ -253,141 +259,164 @@ function GrabAssistant({ merchantData }) {
     }
   };
 
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Header */}
-      <div className="p-4 border-b border-gray-800">
-        <h1 className="text-xl font-semibold">Grab Assistant</h1>
-        <p className="text-sm text-gray-400">Your personal shop assistant</p>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-4 gap-4 p-4 border-b border-gray-800">
-        {quickActions.map((action) => (
-          <button
-            key={action.id}
-            onClick={() => handleQuickAction(action.id)}
-            className="flex flex-col items-center p-4 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
-          >
-            <div className="text-blue-500 mb-2">{action.icon}</div>
-            <span className="text-sm font-medium">{action.label}</span>
-            <span className="text-xs text-gray-400 mt-1">
-              {action.description}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={messagesEndRef}>
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${
-              msg.sender === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
-            <div
-              className={`flex items-start gap-2 max-w-[70%] ${
-                msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-700'
-                }`}
-              >
-                {msg.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
-              </div>
-              <div
-                className={`p-3 rounded-lg ${
-                  msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-800'
-                }`}
-              >
-                <p className="text-sm whitespace-pre-line">{msg.text}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Suggestions Area */}
-      {suggestions.length > 0 && (
-        <div className="sticky bottom-[88px] bg-gray-950 border-t border-gray-800 p-4 flex flex-wrap gap-2">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setInputMessage(suggestion);
-                handleSendMessage(new Event('submit'));
-              }}
-              className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm text-gray-300 transition-colors"
-              disabled={isLoading}
-            >
-              {suggestion}
-            </button>
-          ))}
+      <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-semibold">Grab Assistant</h1>
+          <p className="text-sm text-gray-400">Your personal shop assistant</p>
         </div>
+        <button
+          onClick={() => setShowAnalytics(!showAnalytics)}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          <BarChart2 size={20} />
+          <span>{showAnalytics ? 'Hide Analytics' : 'Show Analytics'}</span>
+        </button>
+      </div>
+
+      {showAnalytics ? (
+        /* Analytics Section */
+        <div className="flex-1 overflow-y-auto">
+          <MerchantAnalytics merchantId={merchantId} />
+        </div>
+      ) : (
+        /* Main Content */
+        <>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-4 gap-4 p-4 border-b border-gray-800">
+            {quickActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleQuickAction(action.id)}
+                className="flex flex-col items-center p-4 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
+              >
+                <div className="text-blue-500 mb-2">{action.icon}</div>
+                <span className="text-sm font-medium">{action.label}</span>
+                <span className="text-xs text-gray-400 mt-1">
+                  {action.description}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Chat Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={messagesEndRef}>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${
+                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                <div
+                  className={`flex items-start gap-2 max-w-[70%] ${
+                    msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-700'
+                    }`}
+                  >
+                    {msg.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
+                  </div>
+                  <div
+                    className={`p-3 rounded-lg ${
+                      msg.sender === 'user' ? 'bg-blue-500' : 'bg-gray-800'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-line">{msg.text}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Suggestions Area */}
+          {suggestions.length > 0 && (
+            <div className="sticky bottom-[88px] bg-gray-950 border-t border-gray-800 p-4 flex flex-wrap gap-2">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setInputMessage(suggestion);
+                    handleSendMessage(new Event('submit'));
+                  }}
+                  className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm text-gray-300 transition-colors"
+                  disabled={isLoading}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input Area */}
+          <div className="sticky bottom-0 bg-gray-950 border-t border-gray-800">
+            <form onSubmit={handleSendMessage} className="p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 disabled:opacity-50"
+                  disabled={!inputMessage.trim() || isLoading}
+                >
+                  {isLoading ? (
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373
+                          0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0
+                          3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      Send
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
       )}
 
-      {/* Input Area */}
-      <div className="sticky bottom-0 bg-gray-950 border-t border-gray-800">
-        <form onSubmit={handleSendMessage} className="p-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 disabled:opacity-50"
-              disabled={!inputMessage.trim() || isLoading}
-            >
-              {isLoading ? (
-                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373
-                      0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0
-                      3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : (
-                <>
-                  <Send size={18} />
-                  Send
-                </>
-              )}
-            </button>
+      {!showAnalytics && (
+        /* Footer */
+        <div className="flex justify-between items-center p-4 border-t border-gray-800 text-sm text-gray-400">
+          <div className="flex items-center gap-2">
+            <HelpCircle size={16} />
+            <span>Need help? Type your question</span>
           </div>
-        </form>
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-between items-center p-4 border-t border-gray-800 text-sm text-gray-400">
-        <div className="flex items-center gap-2">
-          <HelpCircle size={16} />
-          <span>Need help? Type your question</span>
+          <div className="flex items-center gap-2">
+            <Settings size={16} />
+            <span>Settings</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Settings size={16} />
-          <span>Settings</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

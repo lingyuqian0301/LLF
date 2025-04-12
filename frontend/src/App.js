@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,6 +27,8 @@ import {
   LogOut,
   Search,
   Bell,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import "./App.css";
 
@@ -107,11 +109,11 @@ function App() {
       setMerchantData({
         topSellingItems: topSelling || [],
         leastSellingItems: leastSelling || [],
-        popularHours: hours || [],
-        popularDays: days || [],
-        averageBasketSize: basketSize,
-        averageOrderValue: orderValue,
-        averageDeliveryTime: deliveryTime,
+        popularHours: hours || {},
+        popularDays: days || {},
+        average_basket_size: basketSize?.average_basket_size || 0,
+        average_order_value: orderValue?.average_order_value || 0,
+        average_delivery_time: deliveryTime?.average_delivery_time || 0,
       });
     };
 
@@ -300,8 +302,8 @@ function App() {
         </div>
 
         <Routes>
-          <Route path="/" element={<DashboardContent merchantData={merchantData} />} />
-          <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} />} />
+          <Route path="/" element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />} />
+          <Route path="/grab-assistant" element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />} />
         </Routes>
       </div>
     </div>
@@ -311,41 +313,45 @@ function App() {
 // -----------------------------------------------
 // DashboardContent Component
 // -----------------------------------------------
-function DashboardContent({ merchantData }) {
+function DashboardContent({ merchantData, merchantId }) {
   const navigate = useNavigate();
 
   // Set up data for your existing “Popular Hours” chart
   const popularHoursData = {
-    labels: Array.isArray(merchantData.popularHours)
-      ? merchantData.popularHours.map((h) => h.hour)
+    labels: merchantData.popularHours
+      ? Object.keys(merchantData.popularHours).map(hour => `${hour}:00`)
       : [],
     datasets: [
       {
         label: "Orders per Hour",
-        data: Array.isArray(merchantData.popularHours)
-          ? merchantData.popularHours.map((h) => h.count)
+        data: merchantData.popularHours
+          ? Object.values(merchantData.popularHours)
           : [],
-        backgroundColor: "rgba(75, 192, 192, 0.2)",
-        borderColor: "rgba(75, 192, 192, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(59, 130, 246, 0.5)",
+        borderColor: "rgb(59, 130, 246)",
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
       },
     ],
   };
 
   // Set up data for your existing “Popular Days” chart
   const popularDaysData = {
-    labels: Array.isArray(merchantData.popularDays)
-      ? merchantData.popularDays.map((d) => d.day)
+    labels: merchantData.popularDays
+      ? Object.keys(merchantData.popularDays)
       : [],
     datasets: [
       {
         label: "Orders per Day",
-        data: Array.isArray(merchantData.popularDays)
-          ? merchantData.popularDays.map((d) => d.count)
+        data: merchantData.popularDays
+          ? Object.values(merchantData.popularDays)
           : [],
-        backgroundColor: "rgba(153, 102, 255, 0.2)",
-        borderColor: "rgba(153, 102, 255, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(168, 85, 247, 0.5)",
+        borderColor: "rgb(168, 85, 247)",
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
       },
     ],
   };
@@ -414,9 +420,9 @@ function DashboardContent({ merchantData }) {
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Analytics Cards */}
-      <div className="col-span-3 grid grid-cols-3 gap-6 mb-6">
+      <div className="col-span-3 grid grid-cols-4 gap-6 mb-6">
         <SalesCard
-          icon={<ShoppingCart size={24} />}
+          icon={<ShoppingCart size={24} className="text-blue-400" />}
           value={
             typeof merchantData.averageBasketSize === "number"
               ? merchantData.averageBasketSize.toFixed(2)
@@ -427,7 +433,7 @@ function DashboardContent({ merchantData }) {
           changeColor="text-green-500"
         />
         <SalesCard
-          icon={<Package size={24} />}
+          icon={<Package size={24} className="text-purple-400" />}
           value={
             typeof merchantData.averageOrderValue === "number"
               ? `$${merchantData.averageOrderValue.toFixed(2)}`
@@ -438,7 +444,7 @@ function DashboardContent({ merchantData }) {
           changeColor="text-green-500"
         />
         <SalesCard
-          icon={<History size={24} />}
+          icon={<History size={24} className="text-emerald-400" />}
           value={
             typeof merchantData.averageDeliveryTime === "number"
               ? merchantData.averageDeliveryTime.toFixed(0) + " min"
@@ -448,23 +454,112 @@ function DashboardContent({ merchantData }) {
           change="-2%"
           changeColor="text-red-500"
         />
+        <SalesCard
+          icon={<BarChart2 size={24} className="text-amber-400" />}
+          value={merchantData.topSellingItems.length}
+          label="Active Products"
+          change="+8%"
+          changeColor="text-green-500"
+        />
       </div>
 
       {/* Charts Section */}
       <div className="col-span-2 space-y-6">
-        {/* Popular Hours Chart */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Popular Order Hours</h3>
-          <div className="h-64">
-            <Bar data={popularHoursData} options={{ maintainAspectRatio: false }} />
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Analytics Overview</h2>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => navigate('/grab-assistant', { state: { showAnalytics: true } })}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <BarChart2 size={16} />
+              <span>View Full Analytics</span>
+            </button>
           </div>
         </div>
 
-        {/* Popular Days Chart */}
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Popular Order Days</h3>
-          <div className="h-64">
-            <Bar data={popularDaysData} options={{ maintainAspectRatio: false }} />
+        {/* Analytics Charts */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Popular Hours Chart */}
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Popular Order Hours</h3>
+            </div>
+            <div className="h-64">
+              <Line 
+                data={popularHoursData} 
+                options={{ 
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      grid: {
+                        color: 'rgba(75, 85, 99, 0.2)'
+                      },
+                      ticks: {
+                        color: '#9CA3AF'
+                      }
+                    },
+                    x: {
+                      grid: {
+                        color: 'rgba(75, 85, 99, 0.2)'
+                      },
+                      ticks: {
+                        color: '#9CA3AF'
+                      }
+                    }
+                  },
+                  plugins: {
+                    legend: {
+                      labels: {
+                        color: '#9CA3AF'
+                      }
+                    }
+                  }
+                }} 
+              />
+            </div>
+          </div>
+
+          {/* Popular Days Chart */}
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="text-purple-400" size={20} />
+              <h3 className="text-lg font-semibold">Popular Order Days</h3>
+            </div>
+            <div className="h-64">
+              <Bar data={popularDaysData} options={{ 
+                maintainAspectRatio: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: {
+                      color: 'rgba(75, 85, 99, 0.2)'
+                    },
+                    ticks: {
+                      color: '#9CA3AF'
+                    }
+                  },
+                  x: {
+                    grid: {
+                      color: 'rgba(75, 85, 99, 0.2)'
+                    },
+                    ticks: {
+                      color: '#9CA3AF'
+                    }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#9CA3AF'
+                    }
+                  }
+                }
+              }} />
+            </div>
           </div>
         </div>
 
