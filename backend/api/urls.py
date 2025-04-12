@@ -10,4 +10,6 @@ urlpatterns = [
     path('merchant/<str:merchant_id>/average-basket-size/', views.average_basket_size_view),
     path('merchant/<str:merchant_id>/average-order-value/', views.average_order_value_view),
     path('merchant/<str:merchant_id>/average-delivery-time/', views.average_delivery_time_view),
+    # enhanced_keyword_recommendations
+    path('merchant/<str:merchant_id>/enhanced-keyword-recommendations/', views.enhanced_keyword_recommendations_view),
 ]

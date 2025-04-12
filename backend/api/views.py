@@ -5,8 +5,16 @@ import google.generativeai as genai
 import pandas as pd
 from dotenv import load_dotenv
 from pathlib import Path
+import re
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
 
+# Configuration
 load_dotenv()
+
+model = None
+
 
 # Dataset loading
 data_dir = Path("data/datasets/")
@@ -29,6 +37,9 @@ try:
     merged_df['driver_arrival_time'] = pd.to_datetime(merged_df['driver_arrival_time'])
     merged_df['driver_pickup_time'] = pd.to_datetime(merged_df['driver_pickup_time'])
     merged_df['join_date'] = pd.to_datetime(merged_df['join_date'], format='%d%m%Y')
+
+    # keywords sort by checkout, descending
+    keywords_df.sort_values(by='checkout', ascending=False, inplace=True)
 
 except Exception as e:
     print(f"Error loading datasets: {e}")
@@ -134,3 +145,111 @@ def average_delivery_time_view(request, merchant_id):
     data = get_merchant_data(merchant_id)
     return Response({'average_delivery_time': get_avg_delivery_time(data)})
 
+
+
+
+
+
+
+
+# Cuisine keyword mapping
+cuisine_keywords = {
+    'Burgers': ['burger', 'patty', 'bun', 'cheeseburger', 'angus', 'beef', 'grill'],
+    'American': ['wings', 'fries', 'bbq', 'sandwich', 'hot dog', 'bacon', 'cheddar'],
+    'Asian': ['wok', 'stir-fry', 'dim sum', 'pho', 'sushi', 'noodle', 'dumpling'],
+    'Indian': ['curry', 'naan', 'tikka', 'masala', 'biryani', 'samosas', 'lentil'],
+    'Mexican': ['taco', 'burrito', 'quesadilla', 'guacamole', 'salsa', 'nachos'],
+    'Italian': ['pizza', 'pasta', 'risotto', 'bruschetta', 'parmesan', 'mozzarella'],
+    'Seafood': ['fish', 'shrimp', 'salmon', 'tuna', 'crab', 'lobster', 'oyster'],
+    # Add more cuisines as needed
+}
+
+try:
+    # --- Data Loading ---
+    keywords_df = pd.read_csv(data_dir / 'keywords.csv')
+    merchants_df = pd.read_csv(data_dir / 'merchant.csv')
+    items_df = pd.read_csv(data_dir / 'items.csv')
+    
+    # Clean data
+    keywords_df = keywords_df.dropna(subset=['keyword'])
+    items_df = items_df.dropna(subset=['item_name', 'cuisine_tag'])
+    
+    # Initialize model
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    # Precompute keyword embeddings
+    keywords_df['embedding'] = list(model.encode(keywords_df['keyword'].tolist()))
+    
+except Exception as e:
+    print(f"Initialization error: {e}")
+    raise
+
+def calculate_business_score(row):
+    """Normalize business metrics"""
+    max_checkout = keywords_df['checkout'].max()
+    max_order = keywords_df['order'].max()
+    return (0.4 * (row['checkout'] / max_checkout) + 0.6 * (row['order'] / max_order))
+
+def get_cuisine_relevance(keyword, cuisine):
+    """Check if keyword contains cuisine-specific terms"""
+    if cuisine not in cuisine_keywords:
+        return 0
+    return 1 if any(term in keyword.lower() for term in cuisine_keywords[cuisine]) else 0
+
+@api_view(['GET'])
+def enhanced_keyword_recommendations_view(request, merchant_id):
+    """Improved SEO recommendations with cuisine awareness"""
+    try:
+        # Get merchant items
+        merchant_items = items_df[items_df['merchant_id'] == merchant_id]
+        if merchant_items.empty:
+            return Response({'error': 'Merchant not found'}, status=404)
+
+        results = {}
+        
+        for _, item in merchant_items.iterrows():
+            item_name = item['item_name']
+            cuisine = item['cuisine_tag']
+            
+            # Generate item embedding
+            item_embedding = model.encode([item_name])[0]
+            
+            # Calculate similarities
+            keyword_embeddings = np.array(keywords_df['embedding'].tolist())
+            semantic_scores = cosine_similarity([item_embedding], keyword_embeddings)[0]
+            
+            # Calculate business scores
+            business_scores = keywords_df.apply(calculate_business_score, axis=1)
+            
+            # Calculate cuisine relevance
+            cuisine_scores = keywords_df['keyword'].apply(
+                lambda x: get_cuisine_relevance(x, cuisine)
+            )
+            
+            # Combine scores
+            combined_scores = (
+                0.5 * semantic_scores +
+                0.3 * business_scores +
+                0.2 * cuisine_scores
+            )
+            
+            # Get top results
+            result_df = keywords_df.copy()
+            result_df['score'] = combined_scores
+            result_df = result_df[result_df['score'] > 0.4].sort_values(
+                by=['score', 'checkout', 'order'], 
+                ascending=[False, False, False]
+            ).head(5)
+            
+            if not result_df.empty:
+                results[item_name] = result_df[
+                    ['keyword', 'score', 'checkout', 'order']
+                ].to_dict(orient='records')
+
+        return Response({
+            'merchant_id': merchant_id,
+            'recommendations': results
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
