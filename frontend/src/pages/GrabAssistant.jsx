@@ -107,7 +107,7 @@ function GrabAssistant({ merchantData, merchantId }) {
     const initialMessages = [
       {
         id: Date.now(),
-        text: 'Welcome to your shop dashboard! How can I help you today?',
+        text: 'Welcome to your MEX Assistant! How can I help you today?',
         sender: 'bot'
       }
     ];
@@ -381,12 +381,6 @@ function GrabAssistant({ merchantData, merchantId }) {
       onClick: handleBusinessInsight
     },
     {
-      id: 'orders',
-      icon: <ShoppingCart size={20} />,
-      label: 'Order Management',
-      description: 'View and manage your orders'
-    },
-    {
       id: 'products',
       icon: <Package size={20} />,
       label: 'Product Insights',
@@ -462,7 +456,7 @@ function GrabAssistant({ merchantData, merchantId }) {
       <div className="p-4 border-b border-gray-800 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-semibold">Grab Assistant</h1>
-          <p className="text-sm text-gray-400">Your personal shop assistant</p>
+          <p className="text-sm text-gray-400">Your personal merchant assistant</p>
         </div>
         <button
           onClick={() => setShowAnalytics(!showAnalytics)}
