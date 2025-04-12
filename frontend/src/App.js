@@ -40,6 +40,7 @@ import TodayInsights from "./components/TodayInsights";
 import GrabAssistantFab from "./components/GrabAssistantFab";
 // The below import is your new chat page
 import GrabAssistant from "./pages/GrabAssistant";
+import SalesGrowthPopup from "./components/SalesGrowthPopup";
 import ProductPage from "./pages/ProductPage";
 import OperationPage from "./pages/OperationPage";
 
@@ -439,6 +440,7 @@ function DashboardContent({ merchantData, merchantId }) {
 
   return (
     <div className="grid grid-cols-3 gap-6">
+       <SalesGrowthPopup />
       {/* Analytics Cards */}
       {/* Analytics Overview Section */}
       <div className="bg-gray-900 rounded-lg p-5 col-span-3 mb-6">
