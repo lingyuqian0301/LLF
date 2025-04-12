@@ -43,6 +43,7 @@ import GrabAssistant from "./pages/GrabAssistant";
 import SalesGrowthPopup from "./components/SalesGrowthPopup";
 import ProductPage from "./pages/ProductPage";
 import OperationPage from "./pages/OperationPage";
+import SalesReportPage from "./pages/SalesReport";
 
 // Register ChartJS components
 ChartJS.register(
@@ -147,7 +148,15 @@ function App() {
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
-    if (tab === "message") {
+    if (tab === "dashboard") {
+      navigate("/");
+    } else if (tab === "products") {
+      navigate("/products");
+    } else if (tab === "operations") {
+      navigate("/operations");
+    } else if (tab === "sales-report") {
+      navigate("/sales-report");
+    } else if (tab === "message") {
       navigate("/grab-assistant");
     } else if (tab === "product") {
       navigate("/product");
@@ -183,6 +192,16 @@ function App() {
         >
           <Home size={18} />
           <span>Dashboard</span>
+        </button>
+
+        <button
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "sales-report" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
+          onClick={() => handleTabClick("sales-report")}
+        >
+          <BarChart2 size={18} />
+          <span>Sales Report</span>
         </button>
 
         <button
@@ -235,16 +254,7 @@ function App() {
           <span>Operation</span>
         </button>
 
-        <button
-          className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "salesReport" ? "bg-gray-800" : "hover:bg-gray-900"
-          }`}
-          onClick={() => handleTabClick("salesReport")}
-        >
-          <BarChart2 size={18} />
-          <span>Sales Report</span>
-        </button>
-
+        
         <button
           className={`flex items-center gap-3 p-2 rounded-md ${
             activeTab === "message" ? "bg-gray-800" : "hover:bg-gray-900"
@@ -310,11 +320,24 @@ function App() {
           <Routes>
             <Route
               path="/"
-              element={<DashboardContent merchantData={merchantData} merchantId={merchantId} />}
+              element={
+                <DashboardContent
+                  merchantData={merchantData}
+                  merchantId={merchantId}
+                />
+              }
             />
+            <Route path="/products" element={<ProductPage />} />
+            <Route path="/operations" element={<OperationPage />} />
+            <Route path="/sales-report" element={<SalesReportPage />} />
             <Route
               path="/grab-assistant"
-              element={<GrabAssistant merchantData={merchantData} merchantId={merchantId} />}
+              element={
+                <GrabAssistant
+                  merchantData={merchantData}
+                  merchantId={merchantId}
+                />
+              }
             />
             <Route
               path="/product"

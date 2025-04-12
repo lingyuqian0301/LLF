@@ -28,13 +28,82 @@ function GrabAssistant({ merchantData, merchantId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize with a "bot welcome" message and handle analytics state
+  // Initialize based on context
   useEffect(() => {
-    // Check if we should show analytics from navigation
+    // Check if we should show analytics
     if (location.state?.showAnalytics) {
       setShowAnalytics(true);
     }
 
+    // Handle recommendation context
+    if (location.state?.fromRecommendation) {
+      const { recommendation, contextData, metrics } = location.state;
+      setActiveContext({
+        type: 'recommendation',
+        recommendation: recommendation,
+        contextData: contextData,
+        metrics: metrics
+      });
+      
+      // Format the recommendation message with relevant data
+      let recommendationText = `Let's discuss this recommendation: ${recommendation.title}\n\n${recommendation.rationale}\n\nRelevant Data:`;
+      
+      // Add contextual data based on recommendation type
+      if (recommendation.title.includes('Menu') || recommendation.title.includes('Basket Size')) {
+        recommendationText += `\n• Average Basket Size: ${contextData.averages.basketSize} items`;
+        recommendationText += `\n• Average Order Value: $${contextData.averages.orderValue}`;
+        recommendationText += '\n\nTop Selling Items:';
+        contextData.topItems.forEach(item => {
+          recommendationText += `\n• ${item.item_name}: ${item.num_sales} sales`;
+        });
+      } else if (recommendation.title.includes('Delivery Time')) {
+        recommendationText += `\n• Average Delivery Time: ${contextData.averages.deliveryTime} minutes`;
+        recommendationText += '\n\nPeak Hours:';
+        Object.entries(contextData.peakHours)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 3)
+          .forEach(([hour, orders]) => {
+            recommendationText += `\n• ${hour}:00: ${orders} orders`;
+          });
+      } else if (recommendation.title.includes('Peak Day')) {
+        recommendationText += '\n\nPeak Days:';
+        Object.entries(contextData.peakDays)
+          .sort(([,a], [,b]) => b - a)
+          .forEach(([day, orders]) => {
+            recommendationText += `\n• ${day}: ${orders} orders`;
+          });
+      }
+      
+      setMessages([{
+        id: Date.now(),
+        text: recommendationText,
+        sender: 'bot'
+      }]);
+      return;
+    }
+
+    // Handle product keyword context
+    if (location.state?.fromKeyword) {
+      const { product } = location.state;
+      setActiveContext({
+        type: 'product',
+        product: product
+      });
+      setMessages([{
+        id: Date.now(),
+        text: `Let's analyze the keywords for ${product.name}. What would you like to know?`,
+        sender: 'bot'
+      }]);
+      setSuggestions([
+        'What are the trending keywords?',
+        'How can I improve visibility?',
+        'Show me similar products',
+        'Analyze performance'
+      ]);
+      return;
+    }
+
+    // Default welcome message
     const initialMessages = [
       {
         id: Date.now(),
@@ -146,11 +215,28 @@ function GrabAssistant({ merchantData, merchantId }) {
     setIsLoading(true);
 
     try {
-      // Example: call your backend
-      const response = await api.post('ask-gemini/', {
-        query: inputMessage,
-        merchant_id: '2e8a5'  // Hardcoded merchant ID
-      });
+      let response;
+      
+      // Handle different contexts
+      if (location.state?.fromKeyword || activeContext?.type === 'product') {
+        // Product keyword enhancement endpoint
+        response = await api.post(`merchant/${merchantId || '2e8a5'}/enhanced-keyword-recommendations/`, {
+          query: inputMessage
+        });
+      } else if (location.state?.fromRecommendation || activeContext?.type === 'recommendation') {
+        // Recommendations endpoint
+        response = await api.post('ask-gemini/', {
+          query: inputMessage,
+          merchant_id: merchantId || '2e8a5',
+          context: activeContext
+        });
+      } else {
+        // Default endpoint for general queries
+        response = await api.post('ask-gemini/', {
+          query: inputMessage,
+          merchant_id: merchantId || '2e8a5'
+        });
+      }
 
       // Add bot response
       const botMessage = {
@@ -159,6 +245,16 @@ function GrabAssistant({ merchantData, merchantId }) {
         sender: 'bot'
       };
       setMessages(prev => [...prev, botMessage]);
+
+      // Update suggestions based on context
+      if (location.state?.fromKeyword || activeContext?.type === 'product') {
+        setSuggestions([
+          'Tell me more about this product',
+          'How can I improve its performance?',
+          'Show me similar products',
+          'What are the trending keywords?'
+        ]);
+      }
     } catch (error) {
       console.error('API Error:', error);
       const errorMessage = {
