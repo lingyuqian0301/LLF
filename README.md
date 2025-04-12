@@ -1,4 +1,4 @@
-# LLF Project
+# LLF - MEX Assistant
 
 ## Submissions
 - [Documentation](https://docs.google.com/document/d/1E9BOlokJ98bXoZsMWubtUMZDI1P7y_doNMC5IVHbna8/edit?usp=sharing)
