@@ -1,14 +1,24 @@
 import pandas as pd
-import numpy as np
-from datetime import datetime
+import os
+
+# Get the absolute path to the data directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 'data', 'datasets')
+
+#load all csv files from data directory
+items = pd.read_csv(os.path.join(data_dir, 'items.csv'))
+keywords = pd.read_csv(os.path.join(data_dir, 'keywords.csv'))
+merchants = pd.read_csv(os.path.join(data_dir, 'merchants.csv'))
+transaction_data = pd.read_csv(os.path.join(data_dir, 'transaction_data.csv'))
+transaction_items = pd.read_csv(os.path.join(data_dir, 'transaction_items.csv'))
 
 # Load all datasets
 def load_data():
-    items = pd.read_csv('data/items.csv')
-    keywords = pd.read_csv('data/keywords.csv')
-    merchants = pd.read_csv('data/merchant.csv')
-    transactions = pd.read_csv('data/transaction_data.csv')
-    trans_items = pd.read_csv('data/transaction_items.csv')
+    items = pd.read_csv(os.path.join(data_dir, 'items.csv'))
+    keywords = pd.read_csv(os.path.join(data_dir, 'keywords.csv'))
+    merchants = pd.read_csv(os.path.join(data_dir, 'merchant.csv'))
+    transactions = pd.read_csv(os.path.join(data_dir, 'transaction_data.csv'))
+    trans_items = pd.read_csv(os.path.join(data_dir, 'transaction_items.csv'))
 
     # Convert date columns
     transactions['order_time'] = pd.to_datetime(transactions['order_time'])

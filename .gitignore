@@ -19,7 +19,7 @@ node_modules/
 *.csv
 *.zip
 *.sqlite3
-*pyc
+*.pyc
 
 
 # env files

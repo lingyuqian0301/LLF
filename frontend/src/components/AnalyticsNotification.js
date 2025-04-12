@@ -60,18 +60,7 @@ const AnalyticsNotification = ({
   );
 };
 
-// Example usage with NotificationManager:
-// <NotificationManager>
-//   {notifications.map((notification, index) => (
-//     <AnalyticsNotification
-//       key={index}
-//       title={notification.title}
-//       message={notification.message} 
-//       type={notification.type}
-//       data={notification.data}
-//       onClose={() => handleClose(index)}
-//     />
-//   ))}
-// </NotificationManager>
+
+
 
 export default AnalyticsNotification;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AnalyticsNotification from './AnalyticsNotification';
 
 const NotificationManager = () => {
@@ -19,6 +19,7 @@ const NotificationManager = () => {
   };
 
   // Example usage - you can call this from anywhere in your app
+  // eslint-disable-next-line no-unused-vars
   const showAnalyticsNotification = (type, title, message, data) => {
     addNotification({
       type,

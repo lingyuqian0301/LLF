@@ -28,7 +28,7 @@ function TodayInsights() {
     {
       icon: <DollarSign className="w-5 h-5 text-yellow-500" />,
       title: "Revenue",
-      value: "$12,500",
+      value: "RM12,500",
       change: "+10% vs yesterday",
       color: "text-yellow-500"
     },
@@ -82,4 +82,4 @@ function TodayInsights() {
   );
 }
 
-export default TodayInsights; 
+export default TodayInsights;
