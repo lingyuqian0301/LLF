@@ -271,8 +271,12 @@ function GrabAssistant({ merchantData, merchantId }) {
         botResponse = response.data.message || 'Here are my thoughts on your product keywords...';
       } 
       else {
-        // Default response for non-recommendation context
-        botResponse = `I understand you're asking about: ${inputMessage}\n\nLet me help you with that...`;
+        // Use Gemini for queries not related to recommendation or product
+        const geminiResponse = await api.post('ask-gemini/', {
+          query: inputMessage,
+          merchant_id: merchantId || '2e8a5'
+        });
+        botResponse = geminiResponse.data.response || `I understand you're asking about: ${inputMessage}\n\nLet me help you with that...`;
         setSuggestions(['Tell me more', 'How can I improve this?', 'What are the trends?']);
       }
 
