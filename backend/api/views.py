@@ -135,20 +135,75 @@ def get_avg_delivery_time(data):
 
 
 # --- API Views ---
+# Store chat sessions in memory (for demo/testing only)
+chat_sessions = {}
 
 @api_view(['POST'])
 def ask_gemini(request):
     user_query = request.data.get('query')
+    merchant_id = request.data.get('merchant_id')
     api_key = os.getenv('GEMINI_API_KEY')
 
     if not api_key:
         return Response({'error': 'API key missing'}, status=500)
+    if not user_query or not merchant_id:
+        return Response({'error': 'Missing query or merchant_id'}, status=400)
 
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(user_query)
-        return Response({'response': response.text})
+
+        if merchant_id not in chat_sessions:
+            chat_sessions[merchant_id] = model.start_chat()
+        chat = chat_sessions[merchant_id]
+
+        # Get merchant-specific data
+        data = get_merchant_data(merchant_id)
+        if data.empty:
+            return Response({'error': 'No data found for this merchant'}, status=404)
+
+        # Gather all insight data
+        top_items_df = get_top_selling_items(data, top_n=5)
+        least_items_df = get_least_selling_items(data, bottom_n=5)
+        basket_size = get_average_basket_size(data)
+        avg_order_value = get_average_order_value(data)
+        avg_delivery_time = get_avg_delivery_time(data)
+        popular_hours = get_popular_order_hours(data).head(5).to_dict()
+        popular_days = get_popular_order_days(data).head(5).to_dict()
+
+        # Format lists nicely
+        def format_items(df):
+            return ', '.join([f"{row['item_name']} ({row['num_sales']} sales)" for _, row in df.iterrows()])
+
+        stats_context = (
+            f"Merchant ID: {merchant_id}\n"
+            f"- Top 5 Selling Items: {format_items(top_items_df)}\n"
+            f"- Least 5 Selling Items: {format_items(least_items_df)}\n"
+            f"- Average Basket Size: {basket_size} items per order\n"
+            f"- Average Order Value: RM {avg_order_value}\n"
+            f"- Average Delivery Time: {avg_delivery_time} minutes\n"
+            f"- Popular Order Hours: {', '.join(f'{hour}:00 ({count} orders)' for hour, count in popular_hours.items())}\n"
+            f"- Popular Order Days: {', '.join(f'{day} ({count} orders)' for day, count in popular_days.items())}\n"
+        )
+
+        prompt = (
+            "You are a business assistant for Grab merchant-partners. "
+            "Use the provided merchant data to answer the user's question in plain text. "
+            "Avoid any Markdown formatting like asterisks or backticks.\n\n"
+            f"{stats_context}\n"
+            f"User's question: {user_query}"
+        )
+
+        response = chat.send_message(prompt)
+
+        return Response({
+            'response': response.text,
+            'chat_history': [
+                {"role": msg.role, "text": msg.parts[0].text}
+                for msg in chat.history
+            ]
+        })
+
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 

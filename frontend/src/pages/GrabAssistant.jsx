@@ -103,8 +103,9 @@ function GrabAssistant({ merchantData, merchantId }) {
     try {
       // Example: call your backend
       const response = await api.post('ask-gemini/', {
-        query: `You are helping a shop owner with their sales. Use simple words and short sentences. Do not use any special formatting like asterisks (*) or markdown.\n\nHere is their shop data: ${JSON.stringify(merchantData.topSellingItems)}\n\nTheir question is: ${inputMessage}\n\nGive them practical advice in simple text with numbers or bullet points.`
-      });
+        query: inputMessage,
+        merchant_id: '2e8a5'  // Hardcoded merchant ID
+      });
 
       // Add bot response
       const botMessage = {
@@ -241,7 +242,10 @@ function GrabAssistant({ merchantData, merchantId }) {
     }]);
 
     try {
-      const response = await api.post('ask-gemini/', { query });
+      const response = await api.post('ask-gemini/', {
+        query,
+        merchant_id: '2e8a5'  // Hardcoded merchant ID
+      });
       const botMessage = {
         id: Date.now() + 1,
         text: response.data.response,
