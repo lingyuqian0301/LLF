@@ -98,6 +98,8 @@ def get_merchant_data(merchant_id):
     except Exception as e:
         print(f"Error getting merchant data: {e}")
         return pd.DataFrame()
+    
+
 
 def get_top_selling_items(data, top_n=5):
     return (
@@ -134,11 +136,11 @@ def get_average_order_value(data):
 def get_avg_delivery_time(data):
     return round(((data['delivery_time'] - data['order_time']).dt.total_seconds() / 60).mean(), 2)
 
+def get_total_revenue(data):
+    return round(data['item_price'].sum(), 2)
+
 
 # --- API Views ---
-# Store chat sessions in memory (for demo/testing only)
-chat_sessions = {}
-
 # Store chat sessions in memory (for demo/testing only)
 chat_sessions = {}
 
@@ -175,6 +177,7 @@ def ask_gemini(request):
         avg_delivery_time = get_avg_delivery_time(data)
         popular_hours = get_popular_order_hours(data).head(5).to_dict()
         popular_days = get_popular_order_days(data).head(5).to_dict()
+        tot_revenue = get_total_revenue(data)
 
         def format_items(df):
             return ', '.join([f"{row['item_name']} ({row['num_sales']} sales)" for _, row in df.iterrows()])
@@ -188,6 +191,7 @@ def ask_gemini(request):
             f"Delivery time: {avg_delivery_time} mins. "
             f"Popular hours: {', '.join(f'{hour}:00 ({count} orders)' for hour, count in popular_hours.items())}. "
             f"Popular days: {', '.join(f'{day} ({count} orders)' for day, count in popular_days.items())}."
+            f"Total revenue: RM {tot_revenue}."
         )
 
         system_instruction = {
@@ -265,6 +269,21 @@ def average_order_value_view(request, merchant_id):
 def average_delivery_time_view(request, merchant_id):
     data = get_merchant_data(merchant_id)
     return Response({'average_delivery_time': get_avg_delivery_time(data)})
+
+@api_view(['GET'])
+def total_revenue_view(request, merchant_id):
+    try:
+        data = get_merchant_data(merchant_id)
+        if data.empty:
+            return Response({'error': 'No data found for this merchant'}, status=404)
+
+        total_revenue = get_total_revenue(data)
+        return Response({
+            'merchant_id': merchant_id,
+            'total_revenue': total_revenue
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
 
 @api_view(['GET'])
 def merchant_recommendations(request, merchant_id):
@@ -465,6 +484,101 @@ def enhanced_keyword_recommendations_view(request, merchant_id):
         return Response({
             'merchant_id': merchant_id,
             'recommendations': results
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def merchant_alerts_v2(request, merchant_id):
+    try:
+        # Load merchant-specific data
+        df = get_merchant_data(merchant_id)
+        if df.empty:
+            return Response({'error': 'No data found for this merchant'}, status=404)
+
+        df['order_time'] = pd.to_datetime(df['order_time'])
+        latest_date = df['order_time'].max().normalize()
+        latest_data = df[df['order_time'].dt.normalize() == latest_date]
+
+        if latest_data.empty:
+            return Response({'error': 'No data available for the latest date'}, status=404)
+
+        # --- Revenue Summary ---
+        total_orders = latest_data['order_id'].nunique()
+        total_revenue = latest_data['order_value'].sum()
+
+        # --- Inventory Alerts ---
+        item_sales = (
+            latest_data.groupby('item_name')['order_id']
+            .nunique()
+            .reset_index(name='sales_count')
+        )
+        low_selling = item_sales[item_sales['sales_count'] <= 2]['item_name'].tolist()
+        high_selling = item_sales[
+            item_sales['sales_count'] > item_sales['sales_count'].mean() + item_sales['sales_count'].std()
+        ]['item_name'].tolist()
+
+        # --- Bottleneck Alerts ---
+        latest_data['arrival_delay'] = (latest_data['driver_arrival_time'] - latest_data['order_time']).dt.total_seconds() / 60
+        latest_data['pickup_delay'] = (latest_data['driver_pickup_time'] - latest_data['driver_arrival_time']).dt.total_seconds() / 60
+        latest_data['delivery_delay'] = (latest_data['delivery_time'] - latest_data['driver_pickup_time']).dt.total_seconds() / 60
+
+        bottlenecks = []
+        if latest_data['arrival_delay'].mean() > 15:
+            bottlenecks.append("Drivers are taking longer than usual to arrive.")
+        else:
+            bottlenecks.append("Driver arrival times are within acceptable range.")
+
+        if latest_data['pickup_delay'].mean() > 10:
+            bottlenecks.append("Orders are waiting too long after drivers arrive.")
+        else:
+            bottlenecks.append("Pickup delays are minimal and acceptable.")
+
+        if latest_data['delivery_delay'].mean() > 30:
+            bottlenecks.append("Deliveries are slower than expected.")
+        else:
+            bottlenecks.append("Delivery times are within expected range.")
+
+        # --- Gemini Insights ---
+        prompt = f"""
+        You are an AI assistant for Grab that gives merchant-partners real-time operational and inventory insights.
+
+        Below is the latest merchant performance snapshot:
+
+        Date: {latest_date.date()}
+        Revenue: RM{total_revenue:.2f}
+        Total Orders: {total_orders}
+        High Selling Items: {high_selling}
+        Low Selling Items: {low_selling}
+        Bottlenecks: {bottlenecks}
+
+        Generate 3 clear, helpful, business-relevant insights or suggestions for the merchant.
+        Each should include what action to take and why.
+        """
+
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+
+        try:
+            gemini_insights = json.loads(response.text)
+        except:
+            gemini_insights = response.text
+
+        return Response({
+            "merchant_id": merchant_id,
+            "latest_date": str(latest_date.date()),
+            "inventory_status": {
+                "high_selling_items": high_selling,
+                "low_selling_items": low_selling
+            },
+            "revenue_summary": {
+                "total_orders": total_orders,
+                "total_revenue": round(total_revenue, 2)
+            },
+            "bottleneck_alerts": bottlenecks,
+            "gemini_insights": gemini_insights
         })
 
     except Exception as e:
