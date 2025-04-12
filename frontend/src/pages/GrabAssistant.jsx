@@ -46,30 +46,21 @@ function GrabAssistant({ merchantData }) {
       const allItems = location.state.topSellingItems || merchantData.topSellingItems;
 
       if (clickedItem && allItems) {
-        // Calculate item's ranking based on sales
+        // Calculate ranking for internal use
         const sortedItems = [...allItems].sort((a, b) => b.num_sales - a.num_sales);
-        const itemRank = sortedItems.findIndex(item => item.item_name === clickedItem.item_name);
+        const itemRank = sortedItems.findIndex(item => item.item_name === clickedItem.item_name) + 1;
         
-        // Calculate how many items this sells better than
-        const totalItems = sortedItems.length;
-        const itemsBelow = totalItems - itemRank - 1;
-        let popularity = 0;
-        
-        if (totalItems > 1) {
-          popularity = Math.min(100, Math.max(0, Math.round((itemsBelow / (totalItems - 1)) * 100)));
-        }
-        
-        // For debugging
-        console.log('Item:', clickedItem.item_name);
-        console.log('Sales:', clickedItem.num_sales);
-        console.log('Rank:', itemRank + 1, 'out of', sortedItems.length);
-        console.log('Items below:', itemsBelow);
-        console.log('Total items:', totalItems);
-        console.log('Items sorted by sales:', sortedItems.map(i => `${i.item_name}: ${i.num_sales}`));
+        // Store the ranking info in state for use in chat responses
+        window.itemAnalytics = {
+          rank: itemRank,
+          totalItems: sortedItems.length,
+          topItems: sortedItems.slice(0, 3).map(i => i.item_name),
+          bottomItems: sortedItems.slice(-3).map(i => i.item_name)
+        };
 
         const botWelcomeMsg = {
           id: Date.now() + 1,
-          text: `Here's how "${clickedItem.item_name}" is doing:\n• Total sold: ${clickedItem.num_sales} items\n• Sells better than ${popularity}% of your items\n\nWhat would you like to know?`,
+          text: `Here's how "${clickedItem.item_name}" is doing:\n• Total sold: ${clickedItem.num_sales} items\n\nWhat would you like to know?`,
           sender: 'bot'
         };
         setMessages(prev => [...prev, botWelcomeMsg]);
@@ -78,7 +69,12 @@ function GrabAssistant({ merchantData }) {
           'How is this item selling compared to others?',
           'When is the best time to sell this item?',
           'Should I change the price?',
-          'How can I sell more of this item?'
+          'How can I sell more of this item?',
+          'How is this selling compared to others?',
+          'When do people buy this most?',
+          'What are my top selling items?',
+          'Which items need attention?'
+          
         ]);
       }
     }
