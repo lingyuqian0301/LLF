@@ -1,5 +1,9 @@
 # LLF Project
 
+## Submissions
+- [Documentation](https://docs.google.com/document/d/1E9BOlokJ98bXoZsMWubtUMZDI1P7y_doNMC5IVHbna8/edit?usp=sharing)
+- [Presentation Slides](https://www.canva.com/design/DAGkZUSsqao/l_wIsM2u20V5-X_8yayzfQ/edit?utm_content=DAGkZUSsqao&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
 This project contains a Django backend and a React frontend. Follow the steps below to set up and run the project.
 
 ## Prerequisites
