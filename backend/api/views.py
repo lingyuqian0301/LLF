@@ -495,9 +495,13 @@ def merchant_alerts_v2(request, merchant_id):
         if df.empty:
             return Response({'error': 'No data found for this merchant'}, status=404)
 
+        # Convert to datetime safely
+        df = df.copy()  # Ensure we're modifying a copy of the original data
         df['order_time'] = pd.to_datetime(df['order_time'])
+        
+        # Create filtered data WITH EXPLICIT COPY
         latest_date = df['order_time'].max().normalize()
-        latest_data = df[df['order_time'].dt.normalize() == latest_date]
+        latest_data = df.loc[df['order_time'].dt.normalize() == latest_date].copy()  # <-- Key fix here
 
         if latest_data.empty:
             return Response({'error': 'No data available for the latest date'}, status=404)
@@ -517,10 +521,12 @@ def merchant_alerts_v2(request, merchant_id):
             item_sales['sales_count'] > item_sales['sales_count'].mean() + item_sales['sales_count'].std()
         ]['item_name'].tolist()
 
-        # --- Bottleneck Alerts ---
-        latest_data['arrival_delay'] = (latest_data['driver_arrival_time'] - latest_data['order_time']).dt.total_seconds() / 60
-        latest_data['pickup_delay'] = (latest_data['driver_pickup_time'] - latest_data['driver_arrival_time']).dt.total_seconds() / 60
-        latest_data['delivery_delay'] = (latest_data['delivery_time'] - latest_data['driver_pickup_time']).dt.total_seconds() / 60
+        # --- Bottleneck Alerts (SAFE COLUMN ASSIGNMENT) ---
+        latest_data = latest_data.assign(
+            arrival_delay=lambda x: (x['driver_arrival_time'] - x['order_time']).dt.total_seconds() / 60,
+            pickup_delay=lambda x: (x['driver_pickup_time'] - x['driver_arrival_time']).dt.total_seconds() / 60,
+            delivery_delay=lambda x: (x['delivery_time'] - x['driver_pickup_time']).dt.total_seconds() / 60
+        )
 
         bottlenecks = []
         if latest_data['arrival_delay'].mean() > 15:
@@ -553,6 +559,7 @@ def merchant_alerts_v2(request, merchant_id):
 
         Generate 3 clear, helpful, business-relevant insights or suggestions for the merchant.
         Each should include what action to take and why.
+        Make sure the response doesnt contain any markdown or special characters.
         """
 
         genai.configure(api_key=os.getenv('GEMINI_API_KEY'))

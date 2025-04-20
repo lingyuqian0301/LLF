@@ -29,7 +29,9 @@ import {
   Bell,
   Clock,
   Calendar,
-  DollarSign
+  DollarSign,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import "./App.css";
 
@@ -44,6 +46,7 @@ import SalesGrowthPopup from "./components/SalesGrowthPopup";
 import ProductPage from "./pages/ProductPage";
 import OperationPage from "./pages/OperationPage";
 import SalesReportPage from "./pages/SalesReport";
+import InventoryPage from "./pages/InventoryPage";
 
 // Register ChartJS components
 ChartJS.register(
@@ -76,7 +79,8 @@ const fetchMerchantData = async (merchantId, endpoint) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [notifications, setNotifications] = useState([]);
+  const [alerts, setAlerts] = useState(null);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [merchantData, setMerchantData] = useState({
     topSellingItems: [],
     leastSellingItems: [],
@@ -89,6 +93,30 @@ function App() {
 
   const navigate = useNavigate();
   const merchantId = "2e8a5"; // Example merchant ID
+
+  // Fetch alerts
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/merchant/${merchantId}/alerts/`,
+          { credentials: "include" }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        setAlerts(data);
+      } catch (error) {
+        console.error("Error fetching alerts:", error);
+      }
+    };
+
+    fetchAlerts();
+    // Set up polling to fetch alerts every 30 seconds
+    const interval = setInterval(fetchAlerts, 30000);
+    return () => clearInterval(interval);
+  }, [merchantId]);
 
   // Fetch all merchant data at once
   useEffect(() => {
@@ -125,27 +153,6 @@ function App() {
     fetchAllMerchantData();
   }, [merchantId]);
 
-  // Fetch notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch(
-          `http://127.0.0.1:8000/api/merchant/${merchantId}/notifications/`,
-          { credentials: "include" }
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        setNotifications(data || []);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-      }
-    };
-
-    fetchNotifications();
-  }, [merchantId]);
-
   const handleTabClick = (tab) => {
     setActiveTab(tab);
     if (tab === "dashboard") {
@@ -162,6 +169,8 @@ function App() {
       navigate("/product");
     } else if (tab === "operation") {
       navigate("/operation");
+    } else if (tab === "inventory") {
+      navigate("/inventory");
     }
   };
 
@@ -201,27 +210,19 @@ function App() {
           onClick={() => handleTabClick("sales-report")}
         >
           <BarChart2 size={18} />
-          <span>Sales Report</span>
+          <span>Insights</span>
         </button>
+
+        
 
         <button
           className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "profile" ? "bg-gray-800" : "hover:bg-gray-900"
+            activeTab === "inventory" ? "bg-gray-800" : "hover:bg-gray-900"
           }`}
-          onClick={() => handleTabClick("profile")}
-        >
-          <User size={18} />
-          <span>Profile</span>
-        </button>
-
-        <button
-          className={`flex items-center gap-3 p-2 rounded-md ${
-            activeTab === "leaderboard" ? "bg-gray-800" : "hover:bg-gray-900"
-          }`}
-          onClick={() => handleTabClick("leaderboard")}
+          onClick={() => handleTabClick("inventory")}
         >
           <Award size={18} />
-          <span>Leaderboard</span>
+          <span>Inventory</span>
         </button>
 
         <button
@@ -262,7 +263,17 @@ function App() {
           onClick={() => handleTabClick("message")}
         >
           <MessageSquare size={18} />
-          <span>Grab Assistant</span>
+          <span>GrabMEX</span>
+        </button>
+
+        <button
+          className={`flex items-center gap-3 p-2 rounded-md ${
+            activeTab === "profile" ? "bg-gray-800" : "hover:bg-gray-900"
+          }`}
+          onClick={() => handleTabClick("profile")}
+        >
+          <User size={18} />
+          <span>Profile</span>
         </button>
 
         <button
@@ -286,12 +297,12 @@ function App() {
             <h1 className="text-xl font-bold">
               {activeTab === "dashboard" && "Dashboard"}
               {activeTab === "profile" && "Profile"}
-              {activeTab === "leaderboard" && "Leaderboard"}
+              {activeTab === "inventory" && "Inventory"}
               {activeTab === "order" && "Order Management"}
               {activeTab === "product" && "Product Management"}
               {activeTab === "operation" && "Operation Management"}
-              {activeTab === "salesReport" && "Sales Report"}
-              {activeTab === "message" && "Grab Assistant"}
+              {activeTab === "salesReport" && "Insights"}
+              {activeTab === "message" && "GrabMEX"}
               {activeTab === "settings" && "Settings"}
             </h1>
           </div>
@@ -305,10 +316,97 @@ function App() {
                 className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button className="relative p-2 rounded-full hover:bg-gray-800">
-              <Bell size={20} />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <div className="relative">
+              <button 
+                className="relative p-2 rounded-full hover:bg-gray-800"
+                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+              >
+                <Bell size={20} />
+                {alerts && (
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
+              </button>
+              
+              {/* Alerts Dropdown */}
+              {showNotificationDropdown && (
+                <div className="absolute right-0 mt-2 w-96 bg-gray-900 rounded-lg shadow-lg border border-gray-800 overflow-hidden">
+                  <div className="p-4 border-b border-gray-800">
+                    <h3 className="text-lg font-semibold">Orders Insights</h3>
+                    <p className="text-sm text-gray-400">Last updated: {alerts?.latest_date}</p>
+                  </div>
+                  <div className="max-h-[600px] overflow-y-auto">
+                    {alerts ? (
+                      <div className="space-y-4 p-4">
+                        {/* Revenue Summary */}
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h4 className="text-sm font-medium mb-2">Revenue Summary</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-400">Total Orders</p>
+                              <p className="text-lg font-semibold">{alerts.revenue_summary.total_orders}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-400">Total Revenue</p>
+                              <p className="text-lg font-semibold">RM{alerts.revenue_summary.total_revenue.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Inventory Status */}
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h4 className="text-sm font-medium mb-2">Inventory Status</h4>
+                          {alerts.inventory_status.high_selling_items.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-sm text-gray-400">High Selling Items</p>
+                              <ul className="list-disc list-inside text-sm">
+                                {alerts.inventory_status.high_selling_items.map((item, index) => (
+                                  <li key={index} className="text-green-500">{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {alerts.inventory_status.low_selling_items.length > 0 && (
+                            <div>
+                              <p className="text-sm text-gray-400">Low Selling Items</p>
+                              <ul className="list-disc list-inside text-sm">
+                                {alerts.inventory_status.low_selling_items.map((item, index) => (
+                                  <li key={index} className="text-red-500">{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bottleneck Alerts */}
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h4 className="text-sm font-medium mb-2">Operations Status</h4>
+                          <ul className="space-y-2">
+                            {alerts.bottleneck_alerts.map((alert, index) => (
+                              <li key={index} className="flex items-start gap-2 text-sm">
+                                <AlertCircle className="w-4 h-4 text-blue-500 mt-1" />
+                                <span>{alert}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Gemini Insights */}
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h4 className="text-sm font-medium mb-2">AI Insights</h4>
+                          <div className="text-sm text-gray-300 whitespace-pre-line">
+                            {alerts.gemini_insights}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-gray-400">
+                        Loading insights...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="font-semibold">JD</span>
             </div>
@@ -347,6 +445,10 @@ function App() {
               path="/operation"
               element={<OperationPage merchantId={merchantId} />}
             />
+            <Route
+              path="/inventory"
+              element={<InventoryPage merchantId={merchantId} />}
+            />
           </Routes>
         </div>
       </div>
@@ -360,7 +462,7 @@ function App() {
 function DashboardContent({ merchantData, merchantId }) {
   const navigate = useNavigate();
 
-  // Set up data for your existing “Popular Hours” chart
+  // Set up data for your existing "Popular Hours" chart
   const popularHoursData = {
     labels: merchantData.popularHours
       ? Object.keys(merchantData.popularHours).map(hour => `${hour}:00`)
@@ -380,7 +482,7 @@ function DashboardContent({ merchantData, merchantId }) {
     ],
   };
 
-  // Set up data for your existing “Popular Days” chart
+  // Set up data for your existing "Popular Days" chart
   const popularDaysData = {
     labels: merchantData.popularDays
       ? Object.keys(merchantData.popularDays)
@@ -429,7 +531,7 @@ function DashboardContent({ merchantData, merchantId }) {
     ],
   };
 
-  // When user clicks on a bar in the “Top Selling Items” chart
+  // When user clicks on a bar in the "Top Selling Items" chart
   const handleTopSellingBarClick = (evt, elements) => {
     if (!elements.length) return;
     const { index } = elements[0];
@@ -445,7 +547,7 @@ function DashboardContent({ merchantData, merchantId }) {
     });
   };
 
-  // When user clicks on a bar in the “Least Selling Items” chart
+  // When user clicks on a bar in the "Least Selling Items" chart
   const handleLeastSellingBarClick = (evt, elements) => {
     if (!elements.length) return;
     const { index } = elements[0];
@@ -850,7 +952,7 @@ function DashboardContent({ merchantData, merchantId }) {
 
 
 
-        {/* Example “Level” section */}
+        {/* Example "Level" section */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Level</h2>
           <div className="h-48 flex items-end gap-3 mb-4">
@@ -870,7 +972,7 @@ function DashboardContent({ merchantData, merchantId }) {
           </div>
         </div>
 
-        {/* Example “Customer Fulfilment” section */}
+        {/* Example "Customer Fulfilment" section */}
         <div className="bg-gray-900 rounded-lg p-5">
           <h2 className="text-xl font-semibold mb-6">Customer Fulfilment</h2>
           <div className="h-48 relative mb-4">
